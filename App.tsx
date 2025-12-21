@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Checkpoint, CleaningLog, LogStatus, SyncStatus, ShiftReport } from './types';
-import { MOCK_BUILDING, MOCK_CHECKPOINTS, MOCK_USERS, INITIAL_LOGS } from './constants';
+import React, { useState } from 'react';
+import { CleaningLog, ShiftReport } from './types';
+import { MOCK_BUILDING, MOCK_USERS } from './constants';
 import FloorPlan from './components/FloorPlan';
 import LogFeed from './components/LogFeed';
 import StatsOverview from './components/StatsOverview';
@@ -9,78 +9,24 @@ import Header from './components/Header';
 import ReportModal from './components/ReportModal';
 import DashboardGrid from './components/DashboardGrid';
 import { generateShiftReport } from './services/geminiService';
-import { X, Camera, Check, AlertTriangle, MapPin, Scan, LayoutGrid, Map as MapIcon } from 'lucide-react';
+import { useFirestoreData } from "./src/hooks/useFirestoreData";
+
+import { X, Camera, Check, AlertTriangle, MapPin, Scan, LayoutGrid, Map as MapIcon, Loader2 } from 'lucide-react';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [logs, setLogs] = useState<CleaningLog[]>(INITIAL_LOGS);
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>(MOCK_CHECKPOINTS);
   const [selectedLog, setSelectedLog] = useState<CleaningLog | null>(null);
   const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'floorplan' | 'grid'>('floorplan');
   
+  // Real-time Data Hook
+  // Note: We still use MOCK_BUILDING for the ID, but the data is now live from Firestore
+  const { logs, checkpoints, loading } = useFirestoreData(MOCK_BUILDING.id);
+
   // Report State
   const [reportLoading, setReportLoading] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<ShiftReport | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // 10% chance to simulate a new log arrival
-      if (Math.random() > 0.9) {
-        const randomCheckpoint = checkpoints[Math.floor(Math.random() * checkpoints.length)];
-        const randomUser = MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)];
-        
-        const isHazard = Math.random() > 0.8;
-        const newLog: CleaningLog = {
-          id: `log-${Date.now()}`,
-          cleaner_id: randomUser.uid,
-          checkpoint_id: randomCheckpoint.id,
-          building_id: MOCK_BUILDING.id,
-          sync_status: SyncStatus.SYNCED,
-          created_at: new Date().toISOString(),
-          proof_of_presence: {
-            nfc_tap_timestamp: new Date().toISOString(),
-            nfc_payload_hash: 'hash' + Date.now(),
-            geo_location: {
-               latitude: 37.78193 + (Math.random() - 0.5) * 0.0005,
-               longitude: -122.40476 + (Math.random() - 0.5) * 0.0005,
-               accuracy_meters: Math.floor(Math.random() * 10) + 2
-            }
-          },
-          proof_of_quality: {
-            photo_storage_path: 'gs://new_photo.jpg',
-            ai_inference_timestamp: new Date().toISOString(),
-            ai_model_used: randomCheckpoint.ai_config.model_version,
-            inference_time_ms: 150 + Math.random() * 50,
-            detected_objects: isHazard ? [{ label: 'spill', confidence: 0.95, bounding_box: {x:20, y:30, w:30, h:30}}] : [],
-            overall_score: isHazard ? 40 : 95 + Math.random() * 5,
-            passed_validation: !isHazard
-          },
-          verification_result: {
-            status: isHazard ? LogStatus.FLAGGED : LogStatus.VERIFIED,
-            rejection_reason: isHazard ? 'HAZARD_DETECTED' : null
-          }
-        };
-
-        setLogs(prev => [newLog, ...prev]);
-
-        // Update checkpoint status based on new log
-        setCheckpoints(prev => prev.map(cp => {
-          if (cp.id === newLog.checkpoint_id) {
-             return {
-               ...cp,
-               current_status: newLog.verification_result.status === LogStatus.VERIFIED ? 'clean' : 'attention'
-             };
-          }
-          return cp;
-        }));
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [checkpoints]);
 
   const handleGenerateReport = async () => {
     setReportLoading(true);
@@ -91,6 +37,18 @@ function App() {
   };
 
   const selectedCheckpoint = checkpoints.find(c => c.id === selectedCheckpointId);
+
+  // Loading State
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 size={40} className="animate-spin text-blue-600 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900">Connecting to VeriClean Live...</h2>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-gray-50 text-gray-900 font-sans selection:bg-blue-100 selection:text-blue-900">
@@ -223,7 +181,7 @@ function App() {
                   </h4>
                   <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200 relative group shadow-inner">
                      <img 
-                       src="https://picsum.photos/600/600" 
+                       src={selectedLog.proof_of_quality?.photo_storage_path || "https://picsum.photos/600/600"}
                        alt="Verification Evidence" 
                        className="w-full h-full object-cover" 
                      />
@@ -244,23 +202,6 @@ function App() {
                          </span>
                        </div>
                      ))}
-                     <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm font-mono border border-white/10">
-                       {selectedLog.proof_of_quality?.ai_model_used}
-                     </div>
-                  </div>
-                  <div className="mt-4 flex gap-4">
-                     <div className="text-center p-3 bg-gray-50 rounded-xl border border-gray-100 flex-1 shadow-sm">
-                        <div className={`text-2xl font-bold ${selectedLog.proof_of_quality?.passed_validation ? 'text-green-600' : 'text-red-600'}`}>
-                           {selectedLog.proof_of_quality?.overall_score}%
-                        </div>
-                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mt-1">AI Clean Score</div>
-                     </div>
-                     <div className="text-center p-3 bg-gray-50 rounded-xl border border-gray-100 flex-1 shadow-sm">
-                        <div className="text-2xl font-bold text-gray-900">
-                           {selectedLog.proof_of_quality?.inference_time_ms}<span className="text-sm font-normal text-gray-400">ms</span>
-                        </div>
-                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mt-1">Inference Time</div>
-                     </div>
                   </div>
                 </div>
 
@@ -303,37 +244,6 @@ function App() {
                             </div>
                         </div>
                      </div>
-                   </div>
-
-                   <div>
-                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 tracking-wide">Verification Status</h4>
-                      {selectedLog.verification_result.status === LogStatus.VERIFIED ? (
-                         <div className="flex items-center gap-3 text-green-700 bg-green-50 p-4 rounded-xl border border-green-100 shadow-sm">
-                            <div className="p-2 bg-green-100 rounded-full">
-                               <Check size={20} />
-                            </div>
-                            <div>
-                               <p className="font-bold">Automated Pass</p>
-                               <p className="text-xs opacity-90">No hazards detected. SLA Compliant.</p>
-                            </div>
-                         </div>
-                      ) : (
-                         <div className="flex items-center gap-3 text-red-700 bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm">
-                            <div className="p-2 bg-red-100 rounded-full animate-pulse">
-                               <AlertTriangle size={20} />
-                            </div>
-                            <div>
-                               <p className="font-bold">Flagged for Review</p>
-                               <p className="text-xs opacity-90">Reason: {selectedLog.verification_result.rejection_reason}</p>
-                            </div>
-                         </div>
-                      )}
-                   </div>
-
-                   <div className="pt-4 border-t border-gray-100">
-                      <button className="w-full py-2.5 bg-gray-900 hover:bg-black text-white rounded-lg text-sm font-medium transition-all shadow hover:shadow-lg">
-                        Override Status & Approve
-                      </button>
                    </div>
                 </div>
              </div>
