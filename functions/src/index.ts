@@ -1,8 +1,12 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
+import { checkSlaCompliance } from "./slaMonitor"; // Import the new watchdog
+import { streamToBigQuery } from "./analytics";
 
 // Initialize the Firebase Admin SDK to interact with Firestore
-admin.initializeApp();
+if (!admin.apps.length) {
+    admin.initializeApp();
+}
 const db = admin.firestore();
 
 // Interfaces matching the data schema
@@ -62,22 +66,6 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // b. Send Email Notification (SendGrid)
-    /* 
-    try {
-      const msg = {
-        to: 'manager@vericlean.com', // In prod, fetch from building.manager_ids
-        from: 'alerts@vericlean.com',
-        subject: `[URGENT] Issue at ${logData.checkpoint_id}`,
-        text: `A high severity issue was detected.\nScore: ${overallScore}\nHazards: ${hazards.map(h => h.label).join(', ')}`,
-        html: `<strong>High Severity Issue</strong><br>View Dashboard for details.`
-      };
-      await sgMail.send(msg);
-    } catch (error) {
-      console.error('Failed to send email', error);
-    }
-    */
-
     return; // Stop processing SLA if the cleaning failed
   }
 
@@ -98,7 +86,6 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
     const reqCleanings = buildingData.client_sla_config.required_cleanings_per_day || 1;
     
     // Calculate max allowed gap in milliseconds (Simple distribution: 24h / count)
-    // In a real app, this would account for 'cleaning_window_start' and 'end'.
     const maxGapMs = (24 * 60 * 60 * 1000) / reqCleanings;
 
     // Fetch the *previous* log for this specific checkpoint
@@ -146,3 +133,7 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
     console.error("Error analyzing SLA compliance:", error);
   }
 });
+
+// Export the scheduled function
+export { checkSlaCompliance };
+export { streamToBigQuery };
