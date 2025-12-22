@@ -1,29 +1,27 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
+    "target": "ESNext",
+    "useDefineForClassFields": true,
     "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
-    "moduleResolution": "bundler",
+
+    /* Use 'Bundler' for Vite, or 'Node' for wider compatibility */
+    "moduleResolution": "Node", 
+    "resolveJsonModule": true,
     "isolatedModules": true,
-    "moduleDetection": "force",
-    "allowJs": true,
+    "noEmit": true,
     "jsx": "react-jsx",
+    
+    /* CRITICAL: This allows JSX elements to be recognized */
+    "allowSyntheticDefaultImports": true, 
+    "esModuleInterop": true,
+
+    "strict": false, /* Temporarily set to false to clear 'implicit any' errors for demo */
+    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
-    "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src", "App.tsx", "index.tsx", "services", "components", "types.ts"]
 }

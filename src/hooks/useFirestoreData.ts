@@ -10,8 +10,7 @@ import {
   where 
 } from 'firebase/firestore';
 // We use '@/' to point to the root folder safely
-import { CleaningLog, Checkpoint } from '@/types';
-
+import { CleaningLog, Checkpoint } from '../../types';
 // Your actual configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDnLhKEkQH-JTkWlk1iye1jtZQwo12CyzI",
