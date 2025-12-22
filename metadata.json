@@ -1,0 +1,5 @@
+{
+  "name": "VeriClean Dashboard",
+  "description": "A B2B SaaS Command Center for facility management. Features real-time cleaning verification, live floor plan visualization, and AI-driven quality assurance analytics using Gemini.",
+  "requestFramePermissions": []
+}
