@@ -3,15 +3,15 @@ import { Shield, Send, AlertTriangle, Wind, Droplets, Trash2, CheckCircle2 } fro
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-// Reuse firebase config (In production, move to a shared file)
+// Firebase configuration from environment variables
 const firebaseConfig = {
-    apiKey: "AIzaSyDsfJnCJZ24i7cuiTHmFnm8f4fiR9KBnYU",
-    authDomain: "cleanvee-aa847.firebaseapp.com",
-    projectId: "cleanvee-aa847",
-    storageBucket: "cleanvee-aa847.firebasestorage.app",
-    messagingSenderId: "399462814786",
-    appId: "1:399462814786:web:43d14e4615ccb2f1fac9db",
-    measurementId: "G-D7BG44RMVF"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
