@@ -14,7 +14,7 @@ interface ProfileDropdownProps {
 const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
     userName = "Facility Manager",
     userRole = "Administrator",
-    userEmail = "admin@vericlean.com",
+    userEmail = "admin@cleanvee.com",
     avatarUrl = "https://picsum.photos/id/64/100/100",
     onNavigateToSettings,
     onSignOut
@@ -161,7 +161,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
 
                         {/* Footer */}
                         <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700">
-                            <p className="text-xs text-gray-400 text-center">VeriClean v2.0 • © 2024</p>
+                            <p className="text-xs text-gray-400 text-center">Cleanvee v2.0 • © 2024</p>
                         </div>
                     </div>
                 )}
@@ -251,7 +251,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
                         <div className="p-6 space-y-4">
                             <a href="#" className="block p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
                                 <h3 className="font-medium text-blue-900 dark:text-blue-300">📚 Documentation</h3>
-                                <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">Learn how to use VeriClean effectively</p>
+                                <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">Learn how to use Cleanvee effectively</p>
                             </a>
                             <a href="#" className="block p-4 bg-purple-50 dark:bg-purple-900/30 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors">
                                 <h3 className="font-medium text-purple-900 dark:text-purple-300">🎥 Video Tutorials</h3>
@@ -285,7 +285,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
                                 <LogOut size={28} className="text-red-600 dark:text-red-400" />
                             </div>
                             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Sign Out?</h2>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Are you sure you want to sign out of VeriClean?</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Are you sure you want to sign out of Cleanvee?</p>
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setShowSignOutConfirm(false)}

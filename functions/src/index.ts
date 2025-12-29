@@ -1,7 +1,7 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import { checkSlaCompliance } from "./slaMonitor";
-import { streamToBigQuery } from "./analytics";
+import { streamToBigQuery, aggregateStats } from "./analytics";
 
 // Initialize Admin SDK once
 if (!admin.apps.length) {
@@ -14,6 +14,7 @@ interface CleaningLog {
   id: string;
   building_id: string;
   checkpoint_id: string;
+  cleaner_id: string;
   created_at: string;
   proof_of_quality?: {
     overall_score: number;
@@ -22,6 +23,7 @@ interface CleaningLog {
   verification_result?: {
     status: string;
     confidence?: number;
+    flag_reason?: string;
   };
 }
 
@@ -242,16 +244,87 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
       }
 
       console.log(`[Trigger] Successfully processed verified Log ${logId}`);
+
+      // Task 5: Random Audit Logic (Streak tracking)
+      // If a cleaner gets 10 "verified" logs in a row, trigger a manual audit
+      const userRef = db.collection("users").doc(logData.cleaner_id);
+      try {
+        await db.runTransaction(async (transaction) => {
+          const userDoc = await transaction.get(userRef);
+          const currentStreak = (userDoc.exists ? userDoc.data()?.verified_streak : 0) || 0;
+          const newStreak = currentStreak + 1;
+
+          if (newStreak >= 10) {
+            console.log(`[Trigger] Cleaner ${logData.cleaner_id} reached 10 verified logs. Triggering SUPERVISOR_AUDIT_REQUEST.`);
+
+            await db.collection("alerts").add({
+              building_id: logData.building_id,
+              checkpoint_id: logData.checkpoint_id,
+              type: "SUPERVISOR_AUDIT_REQUEST",
+              severity: "MEDIUM",
+              status: "OPEN",
+              message: `Cleaner streak reached 10. Manual spot check requested for ${logData.checkpoint_id}.`,
+              details: {
+                cleaner_id: logData.cleaner_id,
+                streak: newStreak
+              },
+              created_at: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            transaction.set(userRef, { verified_streak: 0 }, { merge: true });
+          } else {
+            transaction.set(userRef, { verified_streak: newStreak }, { merge: true });
+          }
+        });
+      } catch (e) {
+        console.error(`[Trigger] Error updating cleaner streak:`, e);
+      }
+
     } else {
       console.log(`[Trigger] Log ${logId} not verified (status: ${logData.verification_result?.status}). Skipping state update.`);
+
+      // Reset streak if log failed or was flagged
+      if (logData.verification_result?.status === "rejected") {
+        await db.collection("users").doc(logData.cleaner_id).set({ verified_streak: 0 }, { merge: true });
+      }
     }
 
   } catch (error) {
     console.error(`[Trigger] Error processing Log ${logId}:`, error);
-    throw error; // Re-throw to mark function as failed for retry
+    throw error;
+  }
+});
+
+/**
+ * Trigger for Occupant Feedback - The "Occupant Loop"
+ * Overrides AI "Green" status if a human reports an issue shortly after.
+ */
+export const onOccupantFeedback = onDocumentCreated("occupant_feedback/{feedbackId}", async (event) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
+  const feedback = snapshot.data();
+
+  // If feedback is negative, look for the last verification to invalidate
+  if (['BAD_SMELL', 'DIRTY', 'SPILL', 'ISSUE', 'OTHER'].includes(feedback.type)) {
+    const lastLogs = await db.collection("cleaning_logs")
+      .where("checkpoint_id", "==", feedback.checkpoint_id)
+      .where("verification_result.status", "==", "verified")
+      .orderBy("created_at", "desc")
+      .limit(1)
+      .get();
+
+    if (!lastLogs.empty) {
+      const lastLog = lastLogs.docs[0];
+      await lastLog.ref.update({
+        'verification_result.status': 'flagged_for_review',
+        'verification_result.flag_reason': `Occupant reported ${feedback.type}: ${feedback.details || 'No details provided'}`
+      });
+
+      console.log(`[Feedback] Overrode Log ${lastLog.id} status due to occupant feedback ${event.params.feedbackId}`);
+    }
   }
 });
 
 // Export scheduled and analytics functions
 export { checkSlaCompliance };
-export { streamToBigQuery };
+export { streamToBigQuery, aggregateStats };

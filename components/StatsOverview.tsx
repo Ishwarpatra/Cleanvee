@@ -5,6 +5,13 @@ import { ArrowUpRight, CheckSquare, AlertTriangle, Clock, ArrowDownRight } from 
 interface StatsOverviewProps {
   buildingId?: string;
   buildingName?: string;
+  aggregatedStats?: {
+    total_logs: number;
+    verified_count: number;
+    avg_score_sum: number;
+    building_id: string;
+    date: string;
+  };
 }
 
 // Building-specific stats data
@@ -60,19 +67,28 @@ const BUILDING_STATS: Record<string, {
   }
 };
 
-const StatsOverview: React.FC<StatsOverviewProps> = ({ buildingId = 'bldg-001', buildingName }) => {
+const StatsOverview: React.FC<StatsOverviewProps> = ({ buildingId = 'bldg-001', buildingName, aggregatedStats }) => {
   // Get building-specific stats or default to first building
-  const stats = BUILDING_STATS[buildingId] || BUILDING_STATS['bldg-001'];
+  const mockStats = BUILDING_STATS[buildingId] || BUILDING_STATS['bldg-001'];
+
+  // Use real data if available, otherwise fallback to mock
+  const qualityScore = aggregatedStats
+    ? Math.round(aggregatedStats.avg_score_sum / (aggregatedStats.total_logs || 1))
+    : mockStats.qualityScore;
+
+  const tasksCompleted = aggregatedStats ? aggregatedStats.total_logs : mockStats.tasksCompleted;
+  const verifiedCount = aggregatedStats ? aggregatedStats.verified_count : mockStats.tasksCompleted - mockStats.activeHazards;
 
   // Transform trend data for chart
-  const chartData = stats.qualityTrend.map((score, index) => ({
+  const chartData = mockStats.qualityTrend.map((score, index) => ({
     name: `${6 + index * 2}${index < 3 ? 'am' : 'pm'}`,
-    score
+    score: index === 5 && aggregatedStats ? qualityScore : score // Show current score at the end
   }));
 
-  const completionPercent = Math.round((stats.tasksCompleted / stats.totalTasks) * 100);
-  const isPositiveResponse = stats.responseChange <= 0;
-  const isGoodQuality = stats.qualityScore >= 90;
+  const totalTasks = mockStats.totalTasks; // We don't have this in daily stats yet, could add to building config
+  const completionPercent = Math.round((tasksCompleted / totalTasks) * 100);
+  const isPositiveResponse = mockStats.responseChange <= 0;
+  const isGoodQuality = qualityScore >= 90;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -83,7 +99,7 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ buildingId = 'bldg-001', 
           <div>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Avg Quality Score</p>
             <h3 className={`text-2xl font-bold mt-1 ${isGoodQuality ? 'text-gray-900 dark:text-white' : 'text-amber-600 dark:text-amber-400'}`}>
-              {stats.qualityScore}%
+              {qualityScore}%
             </h3>
           </div>
           <div className={`p-2 rounded-lg ${isGoodQuality ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}`}>
@@ -118,7 +134,7 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ buildingId = 'bldg-001', 
           <div>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Tasks Completed</p>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-              {stats.tasksCompleted}<span className="text-sm text-gray-400 dark:text-gray-500 font-normal">/{stats.totalTasks}</span>
+              {tasksCompleted}<span className="text-sm text-gray-400 dark:text-gray-500 font-normal">/{totalTasks}</span>
             </h3>
           </div>
           <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
@@ -138,16 +154,16 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ buildingId = 'bldg-001', 
         <div className="flex justify-between items-start">
           <div>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Active Hazards</p>
-            <h3 className={`text-2xl font-bold mt-1 ${stats.activeHazards > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-              {stats.activeHazards}
+            <h3 className={`text-2xl font-bold mt-1 ${mockStats.activeHazards > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+              {mockStats.activeHazards}
             </h3>
           </div>
-          <div className={`p-2 rounded-lg ${stats.activeHazards > 0 ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
+          <div className={`p-2 rounded-lg ${mockStats.activeHazards > 0 ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
             <AlertTriangle size={20} />
           </div>
         </div>
-        <p className={`text-xs mt-4 font-medium ${stats.activeHazards > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'}`}>
-          {stats.hazardLocation}
+        <p className={`text-xs mt-4 font-medium ${mockStats.activeHazards > 0 ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'}`}>
+          {mockStats.hazardLocation}
         </p>
       </div>
 
@@ -156,8 +172,8 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ buildingId = 'bldg-001', 
         <div className="flex justify-between items-start">
           <div>
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Avg Response Time</p>
-            <h3 className={`text-2xl font-bold mt-1 ${stats.responseTime <= 15 ? 'text-gray-900 dark:text-white' : 'text-amber-600 dark:text-amber-400'}`}>
-              {stats.responseTime}m
+            <h3 className={`text-2xl font-bold mt-1 ${mockStats.responseTime <= 15 ? 'text-gray-900 dark:text-white' : 'text-amber-600 dark:text-amber-400'}`}>
+              {mockStats.responseTime}m
             </h3>
           </div>
           <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400">
@@ -166,7 +182,7 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ buildingId = 'bldg-001', 
         </div>
         <p className={`text-xs mt-4 flex items-center ${isPositiveResponse ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
           <span className="font-bold mr-1">
-            {stats.responseChange > 0 ? '+' : ''}{stats.responseChange}m
+            {mockStats.responseChange > 0 ? '+' : ''}{mockStats.responseChange}m
           </span>
           vs last week
         </p>

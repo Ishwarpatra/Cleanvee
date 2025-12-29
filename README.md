@@ -1,10 +1,10 @@
-# VeriClean: The Janitorial Command Center
+# Cleanvee: The Janitorial Command Center
 
 ![Status](https://img.shields.io/badge/Status-Beta-blue)
 ![Tech](https://img.shields.io/badge/Built%20With-Flutter%20%7C%20Firebase%20%7C%20TensorFlow-02569B)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-**VeriClean** is a "Control-Based" facility management system designed to replace paper logs with digital verification. By combining cryptographic proof-of-presence with edge-based computer vision, we provide facility managers with indisputable proof that work was performed to standard.
+**Cleanvee** is a "Control-Based" facility management system designed to replace paper logs with digital verification. By combining cryptographic proof-of-presence with edge-based computer vision, we provide facility managers with indisputable proof that work was performed to standard.
 
 ---
 
@@ -15,7 +15,7 @@ In the $78B commercial cleaning industry, work is inherently "invisible." Once a
 *   **Subjectivity:** "Clean" is subjective. One person's "clean" is another person's "missed spot."
 
 ## 🛡️ The Solution: Trust, But Verify
-VeriClean bridges the trust gap using a **Two-Factor Verification** protocol:
+Cleanvee bridges the trust gap using a **Two-Factor Verification** protocol:
 
 1.  **Proof of Presence (NFC):** 
     *   Cleaners must tap a cryptographically secure NTAG213 sticker installed at the location.
@@ -59,8 +59,8 @@ VeriClean bridges the trust gap using a **Two-Factor Verification** protocol:
 
 1.  **Clone the Repository**
     ```bash
-    git clone https://github.com/your-org/vericlean.git
-    cd vericlean
+    git clone https://github.com/your-org/cleanvee.git
+    cd cleanvee
     ```
 
 2.  **Mobile App Setup**
@@ -83,11 +83,11 @@ VeriClean bridges the trust gap using a **Two-Factor Verification** protocol:
     *   Set up your `.env` file with `VITE_FIREBASE_API_KEY` for the web dashboard.
 
 ## 📱 Offline-First Architecture
-VeriClean utilizes a "Store-and-Forward" architecture. 
+Cleanvee utilizes a "Store-and-Forward" architecture. 
 1.  **Download:** When online, the app downloads a "Manifest" of Model Weights and Reference Images.
 2.  **Verify:** The app functions 100% offline, storing logs in a local Hive queue.
 3.  **Sync:** A background WorkManager job uploads logs and high-res photos to Cloud Storage when connectivity is restored.
 
 ---
 
-*Copyright © 2024 VeriClean Technologies.*
+*Copyright © 2024 Cleanvee Technologies.*

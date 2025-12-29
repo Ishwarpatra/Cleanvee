@@ -41,6 +41,38 @@
                     "order": "ASCENDING"
                 },
                 {
+                    "fieldPath": "verification_result.status",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "created_at",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "cleaning_logs",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "checkpoint_id",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "created_at",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "cleaning_logs",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "building_id",
+                    "order": "ASCENDING"
+                },
+                {
                     "fieldPath": "created_at",
                     "order": "DESCENDING"
                 }

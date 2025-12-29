@@ -1,8 +1,8 @@
-# VeriClean V2 Architecture
+# Cleanvee V2 Architecture
 
 ## Overview
 
-VeriClean has evolved from a simple data-logging prototype (V1) to a **compliance-focused enterprise platform** (V2) with offline support, automated SLA enforcement, and privacy-first AI integration.
+Cleanvee has evolved from a simple data-logging prototype (V1) to a **compliance-focused enterprise platform** (V2) with offline support, automated SLA enforcement, and privacy-first AI integration.
 
 ---
 

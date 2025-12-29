@@ -157,7 +157,7 @@ class _DashboardViewState extends State<DashboardView> {
           ),
           SizedBox(height: 16),
           Text(
-            'Connecting to VeriClean Live...',
+            'Connecting to Cleanvee Live...',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,

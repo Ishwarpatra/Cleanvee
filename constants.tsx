@@ -125,14 +125,14 @@ export const MOCK_CHECKPOINTS: Checkpoint[] = [
 export const MOCK_USERS: User[] = [
   {
     uid: 'u-101',
-    email: 'sarah.j@vericlean.com',
+    email: 'sarah.j@cleanvee.com',
     full_name: 'Sarah Jenkins',
     role: Role.CLEANER,
     assigned_building_ids: ['bldg-001']
   },
   {
     uid: 'u-102',
-    email: 'mike.t@vericlean.com',
+    email: 'mike.t@cleanvee.com',
     full_name: 'Mike Torres',
     role: Role.CLEANER,
     assigned_building_ids: ['bldg-001']

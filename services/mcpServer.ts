@@ -1,7 +1,7 @@
 /**
  * MCP Server - Model Context Protocol Implementation
  * 
- * This module provides the MCP interface for VeriClean, enabling:
+ * This module provides the MCP interface for Cleanvee, enabling:
  * 1. Automatic ticket creation in ServiceNow/Jira
  * 2. PII-safe data access for AI (Gemini)
  * 
@@ -37,7 +37,7 @@ import type { CleaningLog, Checkpoint } from '../types';
 
 /**
  * MCP Tool: create_servicenow_ticket
- * Creates an incident in ServiceNow from a VeriClean alert
+ * Creates an incident in ServiceNow from a Cleanvee alert
  */
 export async function mcpCreateServiceNowTicket(
     alertId: string,
@@ -74,7 +74,7 @@ export async function mcpCreateServiceNowTicket(
 
 /**
  * MCP Tool: create_jira_ticket
- * Creates an issue in Jira from a VeriClean alert
+ * Creates an issue in Jira from a Cleanvee alert
  */
 export async function mcpCreateJiraTicket(
     alertId: string,
@@ -228,9 +228,9 @@ export function getMCPToolDefinitions(): MCPToolDefinition[] {
     return [
         {
             name: 'create_servicenow_ticket',
-            description: 'Creates an incident in ServiceNow from a VeriClean alert',
+            description: 'Creates an incident in ServiceNow from a Cleanvee alert',
             parameters: {
-                alertId: { type: 'string', description: 'VeriClean alert ID', required: true },
+                alertId: { type: 'string', description: 'Cleanvee alert ID', required: true },
                 title: { type: 'string', description: 'Ticket title/short description', required: true },
                 description: { type: 'string', description: 'Detailed description (PII-safe)', required: true },
                 priority: { type: 'number', description: 'Priority 1-4 (1=critical)', required: true },
@@ -244,9 +244,9 @@ export function getMCPToolDefinitions(): MCPToolDefinition[] {
         },
         {
             name: 'create_jira_ticket',
-            description: 'Creates an issue in Jira from a VeriClean alert',
+            description: 'Creates an issue in Jira from a Cleanvee alert',
             parameters: {
-                alertId: { type: 'string', description: 'VeriClean alert ID', required: true },
+                alertId: { type: 'string', description: 'Cleanvee alert ID', required: true },
                 title: { type: 'string', description: 'Issue summary', required: true },
                 description: { type: 'string', description: 'Detailed description (PII-safe)', required: true },
                 priority: { type: 'number', description: 'Priority 1-4 (1=critical)', required: true },
@@ -259,7 +259,7 @@ export function getMCPToolDefinitions(): MCPToolDefinition[] {
             name: 'create_ticket',
             description: 'Creates a ticket in all configured ticketing systems',
             parameters: {
-                alertId: { type: 'string', description: 'VeriClean alert ID', required: true },
+                alertId: { type: 'string', description: 'Cleanvee alert ID', required: true },
                 title: { type: 'string', description: 'Ticket title', required: true },
                 description: { type: 'string', description: 'Description (PII-safe)', required: true },
                 priority: { type: 'number', description: 'Priority 1-4', required: true },

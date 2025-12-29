@@ -182,7 +182,7 @@ const lowScoreLog = {
 };
 
 async function seed() {
-    console.log("🌱 Seeding VeriClean Emulator Database...\n");
+    console.log("🌱 Seeding Cleanvee Emulator Database...\n");
     console.log("📅 Current time:", now.toISOString());
     console.log("⏰ 5 hours ago:", fiveHoursAgo.toISOString());
     console.log("\n");

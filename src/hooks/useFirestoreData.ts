@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  collection, 
-  query, 
-  orderBy, 
-  limit, 
-  onSnapshot, 
-  where 
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  where,
+  doc
 } from 'firebase/firestore';
 // We use '@/' to point to the root folder safely
 import { CleaningLog, Checkpoint } from '../../types';
@@ -29,6 +30,7 @@ const db = getFirestore(app);
 export const useFirestoreData = (buildingId: string) => {
   const [logs, setLogs] = useState<CleaningLog[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // 1. Real-time Listener for Checkpoints
@@ -36,16 +38,16 @@ export const useFirestoreData = (buildingId: string) => {
     if (!buildingId) return;
 
     const q = query(
-      collection(db, 'checkpoints'), 
+      collection(db, 'checkpoints'),
       where('building_id', '==', buildingId)
     );
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cpData = snapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
+      const cpData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
       } as Checkpoint));
-      
+
       setCheckpoints(cpData);
     });
 
@@ -57,7 +59,7 @@ export const useFirestoreData = (buildingId: string) => {
     if (!buildingId) return;
 
     const yesterday = new Date(Date.now() - 86400000).toISOString();
-    
+
     const q = query(
       collection(db, 'cleaning_logs'),
       where('building_id', '==', buildingId),
@@ -67,11 +69,11 @@ export const useFirestoreData = (buildingId: string) => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const logData = snapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
+      const logData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
       } as CleaningLog));
-      
+
       setLogs(logData);
       setLoading(false);
     });
@@ -79,5 +81,23 @@ export const useFirestoreData = (buildingId: string) => {
     return () => unsubscribe();
   }, [buildingId]);
 
-  return { logs, checkpoints, loading };
+  // 3. Real-time Listener for Daily Stats (Aggregated backend pattern)
+  useEffect(() => {
+    if (!buildingId) return;
+
+    const todayDateString = new Date().toISOString().split('T')[0];
+    const statsDocId = `${buildingId}_${todayDateString}`;
+
+    const unsubscribe = onSnapshot(doc(db, 'stats_daily', statsDocId), (snapshot) => {
+      if (snapshot.exists()) {
+        setStats(snapshot.data());
+      } else {
+        setStats(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [buildingId]);
+
+  return { logs, checkpoints, stats, loading };
 };

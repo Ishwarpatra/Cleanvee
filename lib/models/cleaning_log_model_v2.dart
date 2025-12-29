@@ -109,6 +109,8 @@ class ProofOfQuality {
   final List<DetectedObject> detectedObjects;
   final int overallScore; // 0-100
   final bool passedValidation;
+  final bool odorCheckPassed;   // Manual toggle for non-visual quality
+  final bool suppliesRestocked; // Manual toggle for hygiene supplies
 
   const ProofOfQuality({
     required this.photoStoragePath,
@@ -118,6 +120,8 @@ class ProofOfQuality {
     required this.detectedObjects,
     required this.overallScore,
     required this.passedValidation,
+    required this.odorCheckPassed,
+    required this.suppliesRestocked,
   });
 
   factory ProofOfQuality.fromMap(Map<String, dynamic> map) {
@@ -129,9 +133,21 @@ class ProofOfQuality {
       detectedObjects: (map['detected_objects'] as List<dynamic>?)
           ?.map((e) => DetectedObject.fromMap(e))
           .toList() ?? [],
-      overallScore: map['overall_score'] ?? 0,
+      overallScore: _calculateWeightedScore(
+        (map['overall_score'] ?? 0).toInt(),
+        map['odor_check_passed'] ?? false,
+        map['supplies_restocked'] ?? false,
+      ),
       passedValidation: map['passed_validation'] ?? false,
+      odorCheckPassed: map['odor_check_passed'] ?? false,
+      suppliesRestocked: map['supplies_restocked'] ?? false,
     );
+  }
+
+  /// Calculates a weighted average of AI Vision (70%) and Manual Checks (30%)
+  static int _calculateWeightedScore(int aiScore, bool odor, bool supplies) {
+    double manualScore = (odor ? 50.0 : 0.0) + (supplies ? 50.0 : 0.0);
+    return ((aiScore * 0.7) + (manualScore * 0.3)).round();
   }
 }
 

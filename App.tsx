@@ -27,7 +27,7 @@ function App() {
 
   // Real-time Data Hook
   // Note: Data is filtered by the selected building ID
-  const { logs, checkpoints, loading } = useFirestoreData(selectedBuilding.id);
+  const { logs, checkpoints, stats, loading } = useFirestoreData(selectedBuilding.id);
 
   // Report State
   const [reportLoading, setReportLoading] = useState(false);
@@ -61,7 +61,7 @@ function App() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <Loader2 size={40} className="animate-spin text-blue-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Connecting to VeriClean Live...</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Connecting to Cleanvee Live...</h2>
         </div>
       </div>
     );
@@ -90,7 +90,7 @@ function App() {
         <div className="p-6 overflow-y-auto h-[calc(100vh-80px)] scroll-smooth">
           {activeTab === 'dashboard' && (
             <>
-              <StatsOverview buildingId={selectedBuilding.id} buildingName={selectedBuilding.name} />
+              <StatsOverview buildingId={selectedBuilding.id} buildingName={selectedBuilding.name} aggregatedStats={stats} />
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
                 {/* Left Column: Floor Plan (2/3 width) */}

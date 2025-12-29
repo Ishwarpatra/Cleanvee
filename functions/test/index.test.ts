@@ -1,11 +1,5 @@
 /**
- * Unit tests for VeriClean Cloud Functions
- * 
- * Tests cover:
- * 1. Quality Alert Generation (score < 70)
- * 2. Safety Hazard Alert Generation (detected hazards)
- * 3. Checkpoint State Denormalization
- * 4. Idempotency
+ * Unit tests for Cleanivee Cloud Functions
  */
 
 import * as admin from 'firebase-admin';

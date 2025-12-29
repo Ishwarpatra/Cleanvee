@@ -19,7 +19,7 @@ const TeamView: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('all');
 
-    // Mock data based on VeriClean overview
+    // Mock data based on Cleanvee overview
     const team: TeamMember[] = [
         {
             id: 1,
@@ -28,7 +28,7 @@ const TeamView: React.FC = () => {
             status: "Active",
             location: "Apex Tower - Floor 4",
             verified_logs: 124,
-            email: "sarah.j@vericlean.io",
+            email: "sarah.j@cleanvee.io",
             phone: "+1 (555) 123-4567",
             shift: "Morning (6AM - 2PM)",
             performance: 97
@@ -40,7 +40,7 @@ const TeamView: React.FC = () => {
             status: "Offline",
             location: "Last seen: Lobby",
             verified_logs: 89,
-            email: "mike.r@vericlean.io",
+            email: "mike.r@cleanvee.io",
             phone: "+1 (555) 234-5678",
             shift: "Evening (2PM - 10PM)",
             performance: 88
@@ -52,7 +52,7 @@ const TeamView: React.FC = () => {
             status: "Active",
             location: "Apex Tower - Basement",
             verified_logs: 215,
-            email: "elena.r@vericlean.io",
+            email: "elena.r@cleanvee.io",
             phone: "+1 (555) 345-6789",
             shift: "Morning (6AM - 2PM)",
             performance: 99
@@ -64,7 +64,7 @@ const TeamView: React.FC = () => {
             status: "On Break",
             location: "Break Room - Floor 2",
             verified_logs: 67,
-            email: "james.w@vericlean.io",
+            email: "james.w@cleanvee.io",
             phone: "+1 (555) 456-7890",
             shift: "Morning (6AM - 2PM)",
             performance: 82
@@ -76,7 +76,7 @@ const TeamView: React.FC = () => {
             status: "Active",
             location: "Westside Logistics - Warehouse",
             verified_logs: 156,
-            email: "priya.s@vericlean.io",
+            email: "priya.s@cleanvee.io",
             phone: "+1 (555) 567-8901",
             shift: "Night (10PM - 6AM)",
             performance: 95
@@ -88,7 +88,7 @@ const TeamView: React.FC = () => {
             status: "Active",
             location: "Apex Tower - Floor 7",
             verified_logs: 103,
-            email: "carlos.m@vericlean.io",
+            email: "carlos.m@cleanvee.io",
             phone: "+1 (555) 678-9012",
             shift: "Evening (2PM - 10PM)",
             performance: 91

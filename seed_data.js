@@ -65,7 +65,7 @@ const buildingData = {
 };
 
 async function seed() {
-  console.log("🌱 Seeding VeriClean Database...");
+  console.log("🌱 Seeding Cleanivee Database...");
 
   // 1. Create Building
   await db.collection("buildings").doc(BUILDING_ID).set(buildingData);

@@ -22,7 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onGenerateRe
           <Scan size={24} />
         </div>
         <div>
-          <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white leading-none">VeriClean</h1>
+          <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white leading-none">Cleanvee</h1>
           <p className="text-[10px] text-gray-400 font-medium tracking-wide">COMMAND CENTER</p>
         </div>
       </div>
@@ -33,8 +33,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onGenerateRe
             key={item.id}
             onClick={() => setActiveTab(item.id)}
             className={`flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${activeTab === item.id
-                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 shadow-sm ring-1 ring-blue-100 dark:ring-blue-800'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 shadow-sm ring-1 ring-blue-100 dark:ring-blue-800'
+              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
               }`}
           >
             <item.icon size={18} className={`mr-3 ${activeTab === item.id ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />

@@ -30,8 +30,27 @@ class FirestoreService {
             .toList());
   }
 
+  /// Fetches a page of cleaning logs (Pagination pattern to reduce costs)
+  /// Returns a Future instead of a Stream for one-time fetch on demand
+  Future<List<CleaningLogV2>> fetchLogsPage(String buildingId, {DocumentSnapshot? lastDoc}) async {
+    Query<Map<String, dynamic>> query = _logsRef
+        .where('building_id', isEqualTo: buildingId)
+        .orderBy('created_at', descending: true)
+        .limit(20);
+
+    if (lastDoc != null) {
+      query = query.startAfterDocument(lastDoc);
+    }
+
+    final snapshot = await query.get();
+    return snapshot.docs
+        .map((doc) => CleaningLogV2.fromFirestore(doc))
+        .toList();
+  }
+
   /// Stream of cleaning logs for the last 24 hours
   /// Sorted by creation time (most recent first)
+  /// KEEP for legacy support, but fetchLogsPage is preferred for history
   Stream<List<CleaningLogV2>> logsStream(String buildingId) {
     final yesterday = DateTime.now().subtract(const Duration(hours: 24));
     
@@ -39,7 +58,7 @@ class FirestoreService {
         .where('building_id', isEqualTo: buildingId)
         .where('created_at', isGreaterThanOrEqualTo: yesterday.toIso8601String())
         .orderBy('created_at', descending: true)
-        .limit(100)
+        .limit(50) // Reduced limit for real-time stream
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => CleaningLogV2.fromFirestore(doc))
