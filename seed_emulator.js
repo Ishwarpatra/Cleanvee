@@ -17,7 +17,7 @@ process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
 
 // Initialize without credentials (emulator mode)
 admin.initializeApp({
-    projectId: "vericlean-demo" // Use any project ID for emulator
+    projectId: "cleanvee-demo" // Use any project ID for emulator
 });
 
 const db = admin.firestore();
@@ -132,7 +132,7 @@ const sampleCleaningLog = {
         }
     },
     proof_of_quality: {
-        photo_storage_path: "gs://vericlean-demo/test/photo.jpg",
+        photo_storage_path: "gs://cleanvee-demo/test/photo.jpg",
         ai_inference_timestamp: now.toISOString(),
         ai_model_used: "gemini-1.5-flash",
         inference_time_ms: 1200,
@@ -164,7 +164,7 @@ const lowScoreLog = {
         }
     },
     proof_of_quality: {
-        photo_storage_path: "gs://vericlean-demo/test/photo2.jpg",
+        photo_storage_path: "gs://cleanvee-demo/test/photo2.jpg",
         ai_inference_timestamp: now.toISOString(),
         ai_model_used: "gemini-1.5-flash",
         inference_time_ms: 1500,

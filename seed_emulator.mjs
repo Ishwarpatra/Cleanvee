@@ -17,7 +17,7 @@ async function main() {
     // Initialize without credentials (emulator mode)
     if (!admin.default.apps.length) {
         admin.default.initializeApp({
-            projectId: "vericlean-demo"
+            projectId: "cleanvee-demo"
         });
     }
 

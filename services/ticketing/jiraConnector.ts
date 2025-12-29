@@ -14,7 +14,7 @@ import {
     type TicketingConnector
 } from './types';
 
-// Map VeriClean priority to Jira priority names
+// Map Cleanvee priority to Jira priority names
 const PRIORITY_TO_JIRA: Record<TicketPriority, string> = {
     [TicketPriority.CRITICAL]: 'Highest',
     [TicketPriority.HIGH]: 'High',
@@ -22,7 +22,7 @@ const PRIORITY_TO_JIRA: Record<TicketPriority, string> = {
     [TicketPriority.LOW]: 'Low'
 };
 
-// Map VeriClean alert type to Jira issue type
+// Map Cleanvee alert type to Jira issue type
 const ALERT_TYPE_TO_ISSUE_TYPE: Record<AlertType, string> = {
     [AlertType.SAFETY_HAZARD]: 'Bug',
     [AlertType.QUALITY_FAILURE]: 'Task',
@@ -73,14 +73,14 @@ export class JiraConnector implements TicketingConnector {
     }
 
     /**
-     * Build Jira issue from VeriClean request
+     * Build Jira issue from Cleanvee request
      */
     private buildIssue(request: CreateTicketRequest): JiraIssue {
         const issuesList = request.metadata.detectedIssues?.join(', ') || 'None specified';
 
         const descriptionText = `${request.description}
 
-h3. VeriClean Alert Details
+h3. Cleanvee Alert Details
 * *Alert Type:* ${request.alertType}
 * *Building ID:* ${request.metadata.buildingId}
 * *Location:* ${request.metadata.location || 'Checkpoint ' + request.metadata.checkpointId}
@@ -105,7 +105,7 @@ h3. VeriClean Alert Details
                 issuetype: { name: ALERT_TYPE_TO_ISSUE_TYPE[request.alertType] || 'Task' },
                 priority: { name: PRIORITY_TO_JIRA[request.priority] },
                 labels: [
-                    'vericlean',
+                    'cleanvee',
                     'automated',
                     request.alertType.toLowerCase().replace('_', '-')
                 ]

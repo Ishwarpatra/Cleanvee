@@ -24,7 +24,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     // Check for saved preference or system preference
     const [isDarkMode, setIsDarkMode] = useState(() => {
         // Check localStorage first
-        const saved = localStorage.getItem('vericlean-theme');
+        const saved = localStorage.getItem('cleanvee-theme');
         if (saved !== null) {
             return saved === 'dark';
         }
@@ -36,10 +36,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
-            localStorage.setItem('vericlean-theme', 'dark');
+            localStorage.setItem('cleanvee-theme', 'dark');
         } else {
             document.documentElement.classList.remove('dark');
-            localStorage.setItem('vericlean-theme', 'light');
+            localStorage.setItem('cleanvee-theme', 'light');
         }
     }, [isDarkMode]);
 

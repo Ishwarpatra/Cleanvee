@@ -12,7 +12,7 @@ import {
     type TicketingConnector
 } from './types';
 
-// Map VeriClean priority to ServiceNow urgency/impact (1=high, 3=low)
+// Map Cleanvee priority to ServiceNow urgency/impact (1=high, 3=low)
 const PRIORITY_TO_URGENCY: Record<TicketPriority, number> = {
     [TicketPriority.CRITICAL]: 1,
     [TicketPriority.HIGH]: 2,
@@ -70,7 +70,7 @@ export class ServiceNowConnector implements TicketingConnector {
     }
 
     /**
-     * Build ServiceNow incident from VeriClean request
+     * Build ServiceNow incident from Cleanvee request
      */
     private buildIncident(request: CreateTicketRequest): ServiceNowIncident {
         const issuesList = request.metadata.detectedIssues?.join(', ') || 'None specified';
@@ -79,7 +79,7 @@ export class ServiceNowConnector implements TicketingConnector {
             short_description: request.title,
             description: `${request.description}
 
-=== VeriClean Alert Details ===
+=== Cleanvee Alert Details ===
 Alert Type: ${request.alertType}
 Building ID: ${request.metadata.buildingId}
 Location: ${request.metadata.location || 'Checkpoint ' + request.metadata.checkpointId}

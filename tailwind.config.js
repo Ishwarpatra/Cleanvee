@@ -13,8 +13,8 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
-        // VeriClean Brand Colors
-        vericlean: {
+        // Cleanvee Brand Colors
+        cleanvee: {
           50: '#f0f9ff',
           100: '#e0f2fe',
           500: '#0ea5e9',

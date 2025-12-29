@@ -3,7 +3,7 @@
  * Shared interfaces for ServiceNow and Jira integration
  */
 
-// Severity levels matching VeriClean's alert system
+// Severity levels matching Cleanvee's alert system
 export enum TicketPriority {
     CRITICAL = 1,
     HIGH = 2,

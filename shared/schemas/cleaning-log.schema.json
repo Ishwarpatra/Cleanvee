@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://vericlean.app/schemas/cleaning-log.json",
+    "$id": "https://cleanvee.app/schemas/cleaning-log.json",
     "title": "CleaningLog",
     "description": "A cleaning log entry representing a verified cleaning action",
     "type": "object",

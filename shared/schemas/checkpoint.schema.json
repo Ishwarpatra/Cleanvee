@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://vericlean.app/schemas/checkpoint.json",
+    "$id": "https://cleanvee.app/schemas/checkpoint.json",
     "title": "Checkpoint",
     "description": "A checkpoint/room within a building that requires cleaning verification",
     "type": "object",

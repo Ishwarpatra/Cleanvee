@@ -14,7 +14,7 @@
         }
     },
     "proof_of_quality": {
-        "photo_storage_path": "gs://vericlean-app/logs/log_abc123/photo.jpg",
+        "photo_storage_path": "gs://cleanvee-app/logs/log_abc123/photo.jpg",
         "ai_inference_timestamp": "2025-12-28T12:00:05Z",
         "ai_model_used": "gemini-1.5-flash",
         "inference_time_ms": 1200,

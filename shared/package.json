@@ -1,7 +1,7 @@
 {
-    "name": "vericlean-shared",
+    "name": "cleanvee-shared",
     "version": "1.0.0",
-    "description": "Shared schemas and type generation for VeriClean",
+    "description": "Shared schemas and type generation for Cleanvee",
     "scripts": {
         "generate:ts": "npx quicktype -s schema ./schemas/*.schema.json -o ../functions/src/types.generated.ts --lang typescript --just-types --acronym-style original",
         "generate:dart": "npx quicktype -s schema ./schemas/*.schema.json -o ../lib/models/types.generated.dart --lang dart --just-types",

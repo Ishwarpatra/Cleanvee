@@ -1,6 +1,6 @@
-# VeriClean Shared Schemas
+# Cleanvee Shared Schemas
 
-This directory contains the **single source of truth** for all VeriClean data models.
+This directory contains the **single source of truth** for all Cleanvee data models.
 
 ## Why This Exists
 
@@ -65,7 +65,7 @@ npm run validate
 
    **Dart (Flutter):**
    ```dart
-   import 'package:vericlean/models/types.generated.dart';
+   import 'package:cleanvee/models/types.generated.dart';
    ```
 
 ## Schema Guidelines
