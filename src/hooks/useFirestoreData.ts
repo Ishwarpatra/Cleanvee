@@ -56,7 +56,10 @@ export const useFirestoreData = (buildingId: string) => {
 
   // 2. Real-time Listener for Logs (Last 24 hours)
   useEffect(() => {
-    if (!buildingId) return;
+    if (!buildingId) {
+      setLoading(false);
+      return;
+    }
 
     const yesterday = new Date(Date.now() - 86400000).toISOString();
 
@@ -76,6 +79,9 @@ export const useFirestoreData = (buildingId: string) => {
 
       setLogs(logData);
       setLoading(false);
+    }, (error) => {
+      console.error('Firestore logs query error:', error);
+      setLoading(false); // Stop loading even on error
     });
 
     return () => unsubscribe();
