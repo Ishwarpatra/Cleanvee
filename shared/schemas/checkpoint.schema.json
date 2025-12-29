@@ -1,0 +1,112 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://vericlean.app/schemas/checkpoint.json",
+    "title": "Checkpoint",
+    "description": "A checkpoint/room within a building that requires cleaning verification",
+    "type": "object",
+    "required": [
+        "id",
+        "building_id",
+        "location_label",
+        "floor_number",
+        "is_active"
+    ],
+    "properties": {
+        "id": {
+            "type": "string",
+            "description": "Unique identifier for the checkpoint"
+        },
+        "building_id": {
+            "type": "string",
+            "description": "ID of the parent building"
+        },
+        "location_label": {
+            "type": "string",
+            "description": "Human-readable location name (e.g., 'Room 101', 'Lobby')"
+        },
+        "floor_number": {
+            "type": "integer",
+            "description": "Floor number where this checkpoint is located"
+        },
+        "x_rel": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Relative X position on floor plan (0-100)"
+        },
+        "y_rel": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Relative Y position on floor plan (0-100)"
+        },
+        "is_active": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether this checkpoint is currently active for monitoring"
+        },
+        "current_status": {
+            "$ref": "#/definitions/CheckpointStatus"
+        },
+        "last_cleaned_at": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of last verified cleaning (denormalized)"
+        },
+        "last_cleaned_timestamp": {
+            "type": [
+                "object",
+                "null"
+            ],
+            "description": "Firestore Timestamp of last verified cleaning (for queries)"
+        },
+        "ai_config": {
+            "$ref": "#/definitions/AIConfig"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of last update"
+        }
+    },
+    "definitions": {
+        "CheckpointStatus": {
+            "type": "string",
+            "enum": [
+                "CLEAN",
+                "DIRTY",
+                "OVERDUE",
+                "ATTENTION",
+                "UNKNOWN"
+            ],
+            "default": "UNKNOWN",
+            "description": "Current status of the checkpoint"
+        },
+        "AIConfig": {
+            "type": "object",
+            "properties": {
+                "model_version": {
+                    "type": "string",
+                    "description": "AI model version to use for this checkpoint"
+                },
+                "target_labels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "List of labels the AI should look for"
+                },
+                "sensitivity": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "default": 0.7,
+                    "description": "Detection sensitivity threshold"
+                }
+            }
+        }
+    }
+}

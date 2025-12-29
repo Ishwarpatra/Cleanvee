@@ -1,0 +1,15 @@
+{
+    "name": "vericlean-shared",
+    "version": "1.0.0",
+    "description": "Shared schemas and type generation for VeriClean",
+    "scripts": {
+        "generate:ts": "npx quicktype -s schema ./schemas/*.schema.json -o ../functions/src/types.generated.ts --lang typescript --just-types --acronym-style original",
+        "generate:dart": "npx quicktype -s schema ./schemas/*.schema.json -o ../lib/models/types.generated.dart --lang dart --just-types",
+        "generate:all": "npm run generate:ts && npm run generate:dart",
+        "validate": "npx ajv validate -s ./schemas/cleaning-log.schema.json -d ./examples/cleaning-log.example.json"
+    },
+    "devDependencies": {
+        "quicktype": "^23.0.0",
+        "ajv-cli": "^5.0.0"
+    }
+}

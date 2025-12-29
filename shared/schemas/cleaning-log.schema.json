@@ -1,0 +1,240 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://vericlean.app/schemas/cleaning-log.json",
+    "title": "CleaningLog",
+    "description": "A cleaning log entry representing a verified cleaning action",
+    "type": "object",
+    "required": [
+        "id",
+        "cleaner_id",
+        "checkpoint_id",
+        "building_id",
+        "sync_status",
+        "proof_of_presence",
+        "verification_result",
+        "created_at"
+    ],
+    "properties": {
+        "id": {
+            "type": "string",
+            "description": "Unique identifier for the cleaning log"
+        },
+        "cleaner_id": {
+            "type": "string",
+            "description": "User ID of the cleaner who performed the cleaning"
+        },
+        "checkpoint_id": {
+            "type": "string",
+            "description": "ID of the checkpoint/room being cleaned"
+        },
+        "building_id": {
+            "type": "string",
+            "description": "ID of the building containing the checkpoint"
+        },
+        "sync_status": {
+            "$ref": "#/definitions/SyncStatus"
+        },
+        "proof_of_presence": {
+            "$ref": "#/definitions/ProofOfPresence"
+        },
+        "proof_of_quality": {
+            "$ref": "#/definitions/ProofOfQuality"
+        },
+        "verification_result": {
+            "$ref": "#/definitions/VerificationResult"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of when the log was created"
+        }
+    },
+    "definitions": {
+        "SyncStatus": {
+            "type": "string",
+            "enum": [
+                "synced",
+                "pending_upload"
+            ],
+            "description": "Sync status for offline-first architecture"
+        },
+        "LogStatus": {
+            "type": "string",
+            "enum": [
+                "verified",
+                "rejected",
+                "flagged_for_review"
+            ],
+            "description": "Verification status of the cleaning log"
+        },
+        "BoundingBox": {
+            "type": "object",
+            "required": [
+                "x",
+                "y",
+                "w",
+                "h"
+            ],
+            "properties": {
+                "x": {
+                    "type": "number",
+                    "description": "X coordinate (0-1 normalized)"
+                },
+                "y": {
+                    "type": "number",
+                    "description": "Y coordinate (0-1 normalized)"
+                },
+                "w": {
+                    "type": "number",
+                    "description": "Width (0-1 normalized)"
+                },
+                "h": {
+                    "type": "number",
+                    "description": "Height (0-1 normalized)"
+                }
+            }
+        },
+        "DetectedObject": {
+            "type": "object",
+            "required": [
+                "label",
+                "confidence",
+                "bounding_box"
+            ],
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "description": "Classification label (e.g., 'trash', 'spill', 'clean_floor')"
+                },
+                "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Confidence score from AI model (0-1)"
+                },
+                "bounding_box": {
+                    "$ref": "#/definitions/BoundingBox"
+                }
+            }
+        },
+        "GeoLocation": {
+            "type": "object",
+            "required": [
+                "latitude",
+                "longitude",
+                "accuracy_meters"
+            ],
+            "properties": {
+                "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                },
+                "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                },
+                "accuracy_meters": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "GPS accuracy in meters"
+                }
+            }
+        },
+        "ProofOfPresence": {
+            "type": "object",
+            "required": [
+                "nfc_tap_timestamp",
+                "nfc_payload_hash"
+            ],
+            "properties": {
+                "nfc_tap_timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "ISO 8601 timestamp of NFC tap"
+                },
+                "nfc_payload_hash": {
+                    "type": "string",
+                    "description": "SHA-256 hash of the NFC payload for verification"
+                },
+                "geo_location": {
+                    "$ref": "#/definitions/GeoLocation"
+                }
+            }
+        },
+        "ProofOfQuality": {
+            "type": "object",
+            "required": [
+                "photo_storage_path",
+                "ai_inference_timestamp",
+                "ai_model_used",
+                "inference_time_ms",
+                "detected_objects",
+                "overall_score",
+                "passed_validation"
+            ],
+            "properties": {
+                "photo_storage_path": {
+                    "type": "string",
+                    "description": "Firebase Storage path to the verification photo"
+                },
+                "ai_inference_timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "When AI inference was performed"
+                },
+                "ai_model_used": {
+                    "type": "string",
+                    "description": "Model identifier (e.g., 'gemini-1.5-flash')"
+                },
+                "inference_time_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Time taken for AI inference in milliseconds"
+                },
+                "detected_objects": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/DetectedObject"
+                    },
+                    "description": "Objects detected by AI (hazards, cleanliness indicators)"
+                },
+                "overall_score": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Overall cleanliness score (0-100)"
+                },
+                "passed_validation": {
+                    "type": "boolean",
+                    "description": "Whether the cleaning passed AI validation"
+                }
+            }
+        },
+        "VerificationResult": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "$ref": "#/definitions/LogStatus"
+                },
+                "rejection_reason": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Reason for rejection, if applicable"
+                },
+                "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "AI confidence in the verification decision"
+                }
+            }
+        }
+    }
+}
