@@ -5,13 +5,13 @@ import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/fire
 
 // Reuse firebase config (In production, move to a shared file)
 const firebaseConfig = {
-    apiKey: "AIzaSyDnLhKEkQH-JTkWlk1iye1jtZQwo12CyzI",
-    authDomain: "vericlean-1a6ee.firebaseapp.com",
-    projectId: "vericlean-1a6ee",
-    storageBucket: "vericlean-1a6ee.firebasestorage.app",
-    messagingSenderId: "931450395496",
-    appId: "1:931450395496:web:f16dfff3c55932c42e14dd",
-    measurementId: "G-1FNJZ897L4"
+    apiKey: "AIzaSyDsfJnCJZ24i7cuiTHmFnm8f4fiR9KBnYU",
+    authDomain: "cleanvee-aa847.firebaseapp.com",
+    projectId: "cleanvee-aa847",
+    storageBucket: "cleanvee-aa847.firebasestorage.app",
+    messagingSenderId: "399462814786",
+    appId: "1:399462814786:web:43d14e4615ccb2f1fac9db",
+    measurementId: "G-D7BG44RMVF"
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
