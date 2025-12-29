@@ -9,7 +9,7 @@ interface ToggleProps {
 const Toggle: React.FC<ToggleProps> = ({ enabled, onChange }) => (
     <button
         onClick={onChange}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${enabled ? 'bg-blue-600' : 'bg-gray-200'
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'
             }`}
     >
         <span
@@ -44,9 +44,7 @@ const SettingsView: React.FC = () => {
     const [hasChanges, setHasChanges] = useState(false);
 
     const handleSave = () => {
-        // In a real app, this would save to backend
         setHasChanges(false);
-        // Show success toast
     };
 
     const handleReset = () => {
@@ -73,13 +71,13 @@ const SettingsView: React.FC = () => {
             {/* Header */}
             <div className="flex justify-between items-start">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">System Settings</h2>
-                    <p className="text-sm text-gray-500 mt-1">Configure AI thresholds, mobile policies, and notifications</p>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">System Settings</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configure AI thresholds, mobile policies, and notifications</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handleReset}
-                        className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+                        className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
                     >
                         <RotateCcw size={16} />
                         Reset to Defaults
@@ -88,8 +86,8 @@ const SettingsView: React.FC = () => {
                         onClick={handleSave}
                         disabled={!hasChanges}
                         className={`px-5 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm ${hasChanges
-                                ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                             }`}
                     >
                         <Save size={16} />
@@ -99,23 +97,23 @@ const SettingsView: React.FC = () => {
             </div>
 
             {/* AI Configuration Section */}
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-purple-100 to-violet-100 rounded-xl mr-4">
-                        <Zap className="text-purple-600" size={22} />
+                    <div className="p-2.5 bg-gradient-to-br from-purple-100 to-violet-100 dark:from-purple-900/40 dark:to-violet-900/40 rounded-xl mr-4">
+                        <Zap className="text-purple-600 dark:text-purple-400" size={22} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900">AI & Verification Thresholds</h3>
-                        <p className="text-sm text-gray-500">Configure how the AI evaluates cleaning quality</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">AI & Verification Thresholds</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Configure how the AI evaluates cleaning quality</p>
                     </div>
                 </div>
 
                 <div className="space-y-6">
                     {/* Quality Score Slider */}
-                    <div className="p-4 bg-gray-50 rounded-xl">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                         <div className="flex justify-between items-center mb-3">
-                            <label className="text-sm font-medium text-gray-700">Minimum Quality Score (Pass/Fail)</label>
-                            <span className="text-lg font-bold text-purple-600">{qualityThreshold}%</span>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Minimum Quality Score (Pass/Fail)</label>
+                            <span className="text-lg font-bold text-purple-600 dark:text-purple-400">{qualityThreshold}%</span>
                         </div>
                         <input
                             type="range"
@@ -123,9 +121,9 @@ const SettingsView: React.FC = () => {
                             max="95"
                             value={qualityThreshold}
                             onChange={(e) => { setQualityThreshold(Number(e.target.value)); markChanged(); }}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                            className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-purple-600"
                         />
-                        <div className="flex justify-between text-xs text-gray-500 mt-2">
+                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
                             <span className="flex items-center gap-1">
                                 <span className="w-2 h-2 bg-amber-400 rounded-full"></span>
                                 Lenient (50%)
@@ -139,18 +137,18 @@ const SettingsView: React.FC = () => {
 
                     {/* Toggle Options */}
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                        <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                             <div>
-                                <span className="text-sm font-medium text-gray-700 block">Flag "Yellow" Alerts automatically</span>
-                                <span className="text-xs text-gray-500">Items requiring manual review are flagged</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Flag "Yellow" Alerts automatically</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Items requiring manual review are flagged</span>
                             </div>
                             <Toggle enabled={flagYellowAlerts} onChange={() => { setFlagYellowAlerts(!flagYellowAlerts); markChanged(); }} />
                         </div>
 
                         <div className="flex items-center justify-between py-3">
                             <div>
-                                <span className="text-sm font-medium text-gray-700 block">Auto-escalate scores below threshold</span>
-                                <span className="text-xs text-gray-500">Low scores trigger supervisor review</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Auto-escalate scores below threshold</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Low scores trigger supervisor review</span>
                             </div>
                             <Toggle enabled={autoReviewLowScores} onChange={() => { setAutoReviewLowScores(!autoReviewLowScores); markChanged(); }} />
                         </div>
@@ -159,50 +157,50 @@ const SettingsView: React.FC = () => {
             </div>
 
             {/* Mobile App Policy Section */}
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-xl mr-4">
-                        <Smartphone className="text-blue-600" size={22} />
+                    <div className="p-2.5 bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900/40 dark:to-cyan-900/40 rounded-xl mr-4">
+                        <Smartphone className="text-blue-600 dark:text-blue-400" size={22} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Mobile App Policy</h3>
-                        <p className="text-sm text-gray-500">Control how the cleaner app captures data</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Mobile App Policy</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Control how the cleaner app captures data</p>
                     </div>
                 </div>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                         <div className="flex items-center gap-3">
                             <Globe size={18} className="text-blue-500" />
                             <div>
-                                <span className="text-sm font-medium text-gray-700 block">Require GPS location for all NFC scans</span>
-                                <span className="text-xs text-gray-500">Ensures location verification on each scan</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Require GPS location for all NFC scans</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Ensures location verification on each scan</span>
                             </div>
                         </div>
                         <Toggle enabled={requireGps} onChange={() => { setRequireGps(!requireGps); markChanged(); }} />
                     </div>
 
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                         <div className="flex items-center gap-3">
                             <Database size={18} className="text-blue-500" />
                             <div>
-                                <span className="text-sm font-medium text-gray-700 block">Allow offline mode (Store-and-Forward)</span>
-                                <span className="text-xs text-gray-500">Logs sync when connection is restored</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Allow offline mode (Store-and-Forward)</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Logs sync when connection is restored</span>
                             </div>
                         </div>
                         <Toggle enabled={allowOffline} onChange={() => { setAllowOffline(!allowOffline); markChanged(); }} />
                     </div>
 
                     {allowOffline && (
-                        <div className="ml-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                            <label className="text-sm font-medium text-gray-700 block mb-2">Maximum offline duration (hours)</label>
+                        <div className="ml-8 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-2">Maximum offline duration (hours)</label>
                             <input
                                 type="number"
                                 min="1"
                                 max="24"
                                 value={maxOfflineHours}
                                 onChange={(e) => { setMaxOfflineHours(Number(e.target.value)); markChanged(); }}
-                                className="w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                className="w-24 px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                             />
                         </div>
                     )}
@@ -211,8 +209,8 @@ const SettingsView: React.FC = () => {
                         <div className="flex items-center gap-3">
                             <Shield size={18} className="text-blue-500" />
                             <div>
-                                <span className="text-sm font-medium text-gray-700 block">Require photo evidence for each scan</span>
-                                <span className="text-xs text-gray-500">AI verification requires image proof</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Require photo evidence for each scan</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">AI verification requires image proof</span>
                             </div>
                         </div>
                         <Toggle enabled={photoRequired} onChange={() => { setPhotoRequired(!photoRequired); markChanged(); }} />
@@ -221,24 +219,24 @@ const SettingsView: React.FC = () => {
             </div>
 
             {/* SLA Configuration Section */}
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-emerald-100 to-green-100 rounded-xl mr-4">
-                        <Clock className="text-emerald-600" size={22} />
+                    <div className="p-2.5 bg-gradient-to-br from-emerald-100 to-green-100 dark:from-emerald-900/40 dark:to-green-900/40 rounded-xl mr-4">
+                        <Clock className="text-emerald-600 dark:text-emerald-400" size={22} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900">SLA Configuration</h3>
-                        <p className="text-sm text-gray-500">Define service level agreement parameters</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">SLA Configuration</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Define service level agreement parameters</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                        <label className="text-sm font-medium text-gray-700 block mb-2">Maximum cleaning interval (hours)</label>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-2">Maximum cleaning interval (hours)</label>
                         <select
                             value={maxCleaningInterval}
                             onChange={(e) => { setMaxCleaningInterval(Number(e.target.value)); markChanged(); }}
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white cursor-pointer"
+                            className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer"
                         >
                             <option value={2}>2 hours</option>
                             <option value={4}>4 hours</option>
@@ -249,12 +247,12 @@ const SettingsView: React.FC = () => {
                         </select>
                     </div>
 
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                        <label className="text-sm font-medium text-gray-700 block mb-2">Grace period before alert (minutes)</label>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-2">Grace period before alert (minutes)</label>
                         <select
                             value={gracePeriod}
                             onChange={(e) => { setGracePeriod(Number(e.target.value)); markChanged(); }}
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white cursor-pointer"
+                            className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer"
                         >
                             <option value={5}>5 minutes</option>
                             <option value={10}>10 minutes</option>
@@ -267,52 +265,52 @@ const SettingsView: React.FC = () => {
             </div>
 
             {/* Notification Settings Section */}
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-amber-100 to-orange-100 rounded-xl mr-4">
-                        <Bell className="text-amber-600" size={22} />
+                    <div className="p-2.5 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40 rounded-xl mr-4">
+                        <Bell className="text-amber-600 dark:text-amber-400" size={22} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Notification Preferences</h3>
-                        <p className="text-sm text-gray-500">Manage how you receive alerts and updates</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notification Preferences</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Manage how you receive alerts and updates</p>
                     </div>
                 </div>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                         <div>
-                            <span className="text-sm font-medium text-gray-700 block">Email notifications</span>
-                            <span className="text-xs text-gray-500">Receive reports and alerts via email</span>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Email notifications</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Receive reports and alerts via email</span>
                         </div>
                         <Toggle enabled={emailNotifications} onChange={() => { setEmailNotifications(!emailNotifications); markChanged(); }} />
                     </div>
 
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                         <div>
-                            <span className="text-sm font-medium text-gray-700 block">Push notifications</span>
-                            <span className="text-xs text-gray-500">Real-time alerts on your devices</span>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Push notifications</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Real-time alerts on your devices</span>
                         </div>
                         <Toggle enabled={pushNotifications} onChange={() => { setPushNotifications(!pushNotifications); markChanged(); }} />
                     </div>
 
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                         <div>
-                            <span className="text-sm font-medium text-gray-700 block">SLA breach alerts</span>
-                            <span className="text-xs text-gray-500">Immediate notification when SLA is violated</span>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">SLA breach alerts</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Immediate notification when SLA is violated</span>
                         </div>
                         <Toggle enabled={slaAlerts} onChange={() => { setSlaAlerts(!slaAlerts); markChanged(); }} />
                     </div>
 
                     <div className="py-3">
-                        <label className="text-sm font-medium text-gray-700 block mb-2">Email digest frequency</label>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-2">Email digest frequency</label>
                         <div className="flex gap-3">
                             {['realtime', 'daily', 'weekly'].map((freq) => (
                                 <button
                                     key={freq}
                                     onClick={() => { setDigestFrequency(freq); markChanged(); }}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${digestFrequency === freq
-                                            ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-700'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                         }`}
                                 >
                                     {freq.charAt(0).toUpperCase() + freq.slice(1)}
@@ -324,17 +322,17 @@ const SettingsView: React.FC = () => {
             </div>
 
             {/* User Management Preview */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-xl border border-gray-200">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center mb-4">
-                    <div className="p-2.5 bg-white rounded-xl mr-4 shadow-sm">
-                        <UserCog className="text-gray-500" size={22} />
+                    <div className="p-2.5 bg-white dark:bg-gray-700 rounded-xl mr-4 shadow-sm">
+                        <UserCog className="text-gray-500 dark:text-gray-400" size={22} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900">User & Role Management</h3>
-                        <p className="text-sm text-gray-500">Configure access levels and permissions</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User & Role Management</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Configure access levels and permissions</p>
                     </div>
                 </div>
-                <button className="bg-white px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all">
+                <button className="bg-white dark:bg-gray-700 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all">
                     Manage Users & Roles →
                 </button>
             </div>

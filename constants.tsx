@@ -1,20 +1,71 @@
 import { Building, Checkpoint, CleaningLog, LogStatus, Role, SyncStatus, User } from './types';
 
-export const MOCK_BUILDING: Building = {
-  id: 'bldg-001',
-  name: 'Apex Tower HQ',
-  address: {
-    street: '101 Tech Blvd',
-    city: 'San Francisco',
-    state: 'CA',
-    zip: '94105'
+// All available buildings
+export const ALL_BUILDINGS: Building[] = [
+  {
+    id: 'bldg-001',
+    name: 'Apex Tower HQ',
+    address: {
+      street: '101 Tech Blvd',
+      city: 'San Francisco',
+      state: 'CA',
+      zip: '94105'
+    },
+    client_sla_config: {
+      required_cleanings_per_day: 3,
+      cleaning_window_start: '06:00',
+      cleaning_window_end: '20:00'
+    }
   },
-  client_sla_config: {
-    required_cleanings_per_day: 3,
-    cleaning_window_start: '06:00',
-    cleaning_window_end: '20:00'
+  {
+    id: 'bldg-002',
+    name: 'Westside Logistics',
+    address: {
+      street: '4400 Industrial Pkwy',
+      city: 'Oakland',
+      state: 'CA',
+      zip: '94601'
+    },
+    client_sla_config: {
+      required_cleanings_per_day: 4,
+      cleaning_window_start: '05:00',
+      cleaning_window_end: '22:00'
+    }
+  },
+  {
+    id: 'bldg-003',
+    name: 'Downtown Medical Center',
+    address: {
+      street: '500 Healthcare Blvd',
+      city: 'San Jose',
+      state: 'CA',
+      zip: '95113'
+    },
+    client_sla_config: {
+      required_cleanings_per_day: 6,
+      cleaning_window_start: '00:00',
+      cleaning_window_end: '23:59'
+    }
+  },
+  {
+    id: 'bldg-004',
+    name: 'Tech Campus Alpha',
+    address: {
+      street: '1 Innovation Way',
+      city: 'Palo Alto',
+      state: 'CA',
+      zip: '94301'
+    },
+    client_sla_config: {
+      required_cleanings_per_day: 2,
+      cleaning_window_start: '07:00',
+      cleaning_window_end: '19:00'
+    }
   }
-};
+];
+
+// Default building (first in the list)
+export const MOCK_BUILDING: Building = ALL_BUILDINGS[0];
 
 export const MOCK_CHECKPOINTS: Checkpoint[] = [
   {

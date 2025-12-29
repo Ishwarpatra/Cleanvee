@@ -105,18 +105,18 @@ const TeamView: React.FC = () => {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'Active': return 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200';
-            case 'Offline': return 'bg-gray-100 text-gray-600 ring-1 ring-gray-200';
-            case 'On Break': return 'bg-amber-100 text-amber-700 ring-1 ring-amber-200';
-            default: return 'bg-gray-100 text-gray-600';
+            case 'Active': return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800';
+            case 'Offline': return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 ring-1 ring-gray-200 dark:ring-gray-600';
+            case 'On Break': return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-800';
+            default: return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
         }
     };
 
     const getPerformanceColor = (performance: number) => {
-        if (performance >= 95) return 'text-emerald-600';
-        if (performance >= 85) return 'text-blue-600';
-        if (performance >= 70) return 'text-amber-600';
-        return 'text-red-600';
+        if (performance >= 95) return 'text-emerald-600 dark:text-emerald-400';
+        if (performance >= 85) return 'text-blue-600 dark:text-blue-400';
+        if (performance >= 70) return 'text-amber-600 dark:text-amber-400';
+        return 'text-red-600 dark:text-red-400';
     };
 
     const stats = [
@@ -131,8 +131,8 @@ const TeamView: React.FC = () => {
             {/* Header Section */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Janitorial Team</h2>
-                    <p className="text-sm text-gray-500 mt-1">Manage and monitor your cleaning staff</p>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Janitorial Team</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage and monitor your cleaning staff</p>
                 </div>
                 <button className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium shadow-sm hover:shadow-md flex items-center gap-2 text-sm">
                     <User size={16} />
@@ -143,18 +143,18 @@ const TeamView: React.FC = () => {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {stats.map((stat, index) => (
-                    <div key={index} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div key={index} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-3">
                             <div className={`w-3 h-3 rounded-full ${stat.color}`}></div>
-                            <span className="text-sm text-gray-500 font-medium">{stat.label}</span>
+                            <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{stat.label}</span>
                         </div>
-                        <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{stat.value}</p>
                     </div>
                 ))}
             </div>
 
             {/* Search and Filter Bar */}
-            <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-3 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
@@ -162,7 +162,7 @@ const TeamView: React.FC = () => {
                         placeholder="Search by name, role, or location..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                     />
                 </div>
                 <div className="flex items-center gap-2">
@@ -170,7 +170,7 @@ const TeamView: React.FC = () => {
                     <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value)}
-                        className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer"
+                        className="px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer"
                     >
                         <option value="all">All Status</option>
                         <option value="active">Active</option>
@@ -185,24 +185,24 @@ const TeamView: React.FC = () => {
                 {filteredTeam.map((member) => (
                     <div
                         key={member.id}
-                        className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 group"
+                        className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg transition-all duration-300 group"
                     >
                         {/* Header */}
                         <div className="flex items-start justify-between">
                             <div className="flex items-center space-x-3">
-                                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-lg shadow-inner ring-2 ring-white">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-lg shadow-inner ring-2 ring-white dark:ring-gray-700">
                                     {member.name.split(' ').map(n => n[0]).join('')}
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                                    <p className="text-xs text-gray-500">{member.role}</p>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white">{member.name}</h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{member.role}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(member.status)}`}>
                                     {member.status}
                                 </span>
-                                <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                                <button className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
                                     <MoreVertical size={16} />
                                 </button>
                             </div>
@@ -210,35 +210,35 @@ const TeamView: React.FC = () => {
 
                         {/* Details */}
                         <div className="mt-4 space-y-2.5">
-                            <div className="flex items-center text-sm text-gray-600">
-                                <MapPin size={14} className="mr-2 text-gray-400" />
+                            <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                                <MapPin size={14} className="mr-2 text-gray-400 dark:text-gray-500" />
                                 <span className="truncate">{member.location}</span>
                             </div>
-                            <div className="flex items-center text-sm text-gray-600">
-                                <Clock size={14} className="mr-2 text-gray-400" />
+                            <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                                <Clock size={14} className="mr-2 text-gray-400 dark:text-gray-500" />
                                 {member.shift}
                             </div>
-                            <div className="flex items-center text-sm text-gray-600">
+                            <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                                 <BadgeCheck size={14} className="mr-2 text-blue-500" />
                                 <span className="font-medium">{member.verified_logs}</span>
-                                <span className="ml-1 text-gray-400">Verified Logs</span>
+                                <span className="ml-1 text-gray-400 dark:text-gray-500">Verified Logs</span>
                             </div>
                         </div>
 
                         {/* Performance & Contact */}
-                        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
                                 <TrendingUp size={14} className={getPerformanceColor(member.performance)} />
                                 <span className={`text-sm font-semibold ${getPerformanceColor(member.performance)}`}>
                                     {member.performance}%
                                 </span>
-                                <span className="text-xs text-gray-400 ml-1">performance</span>
+                                <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">performance</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title={member.email}>
+                                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title={member.email}>
                                     <Mail size={16} />
                                 </button>
-                                <button className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title={member.phone}>
+                                <button className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors" title={member.phone}>
                                     <Phone size={16} />
                                 </button>
                             </div>
@@ -249,12 +249,12 @@ const TeamView: React.FC = () => {
 
             {/* Empty State */}
             {filteredTeam.length === 0 && (
-                <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <User size={24} className="text-gray-400" />
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <User size={24} className="text-gray-400 dark:text-gray-500" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No team members found</h3>
-                    <p className="text-sm text-gray-500">Try adjusting your search or filter criteria</p>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No team members found</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Try adjusting your search or filter criteria</p>
                 </div>
             )}
         </div>

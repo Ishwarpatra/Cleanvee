@@ -50,7 +50,6 @@ const BuildingsView = () => {
 
     const handleRowClick = (buildingId: string) => {
         console.log(`Navigating to details view for ${buildingId}`);
-        // Here you would implement navigation to building details
     };
 
     const handleConfigure = (building: BuildingData, e: React.MouseEvent) => {
@@ -69,13 +68,13 @@ const BuildingsView = () => {
             {/* Header Actions */}
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Facility Management</h2>
-                    <p className="text-sm text-gray-500">Manage locations, tags, and compliance standards.</p>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Facility Management</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Manage locations, tags, and compliance standards.</p>
                 </div>
                 <div className="flex space-x-3">
                     <button
                         onClick={handleGlobalSlaSettings}
-                        className="flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                         <Sliders size={18} className="mr-2" /> SLA Settings
                     </button>
@@ -90,81 +89,81 @@ const BuildingsView = () => {
 
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <p className="text-sm text-gray-500 font-medium">Total Buildings</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{buildings.length}</p>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Total Buildings</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{buildings.length}</p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <p className="text-sm text-gray-500 font-medium">Active NFC Tags</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{buildings.reduce((sum, b) => sum + b.tags, 0)}</p>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Active NFC Tags</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{buildings.reduce((sum, b) => sum + b.tags, 0)}</p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <p className="text-sm text-gray-500 font-medium">Avg. Compliance</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Avg. Compliance</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
                         {Math.round(buildings.reduce((sum, b) => sum + b.compliance, 0) / buildings.length)}%
                     </p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <p className="text-sm text-gray-500 font-medium">Needs Attention</p>
-                    <p className="text-3xl font-bold text-amber-600 mt-1">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Needs Attention</p>
+                    <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">
                         {buildings.filter(b => b.sla_status !== 'Healthy').length}
                     </p>
                 </div>
             </div>
 
             {/* Buildings Table */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
                 <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-200">
+                    <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                         <tr>
-                            <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Building</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Compliance</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-right">Actions</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Building</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Compliance</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                         {buildings.map((b) => (
                             <tr
                                 key={b.id}
                                 onClick={() => handleRowClick(b.id)}
-                                className="hover:bg-gray-50 cursor-pointer group transition-colors"
+                                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer group transition-colors"
                             >
                                 <td className="px-6 py-4">
                                     <div className="flex items-center">
-                                        <div className="p-2 bg-blue-50 rounded-lg mr-3 text-blue-600">
+                                        <div className="p-2 bg-blue-50 dark:bg-blue-900/40 rounded-lg mr-3 text-blue-600 dark:text-blue-400">
                                             <Building2 size={20} />
                                         </div>
                                         <div>
-                                            <div className="font-medium text-gray-900">{b.name}</div>
-                                            <div className="text-xs text-gray-500">{b.address}</div>
+                                            <div className="font-medium text-gray-900 dark:text-white">{b.name}</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400">{b.address}</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center space-x-2">
                                         {b.sla_status === 'Warning' ? (
-                                            <span className="inline-flex items-center text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
+                                            <span className="inline-flex items-center text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/40 px-2 py-1 rounded-full border border-amber-100 dark:border-amber-800">
                                                 <AlertTriangle size={12} className="mr-1" /> Attention Needed
                                             </span>
                                         ) : b.sla_status === 'Critical' ? (
-                                            <span className="inline-flex items-center text-xs font-medium text-red-700 bg-red-50 px-2 py-1 rounded-full border border-red-100">
+                                            <span className="inline-flex items-center text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/40 px-2 py-1 rounded-full border border-red-100 dark:border-red-800">
                                                 <AlertTriangle size={12} className="mr-1" /> Critical
                                             </span>
                                         ) : (
-                                            <span className="inline-flex items-center text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-full border border-green-100">
+                                            <span className="inline-flex items-center text-xs font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/40 px-2 py-1 rounded-full border border-green-100 dark:border-green-800">
                                                 Healthy
                                             </span>
                                         )}
-                                        <span className="text-xs text-gray-400">| {b.tags} Tags</span>
+                                        <span className="text-xs text-gray-400 dark:text-gray-500">| {b.tags} Tags</span>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 max-w-xs">
                                     <div className="flex items-center">
-                                        <span className={`text-sm font-medium w-10 ${b.compliance >= 95 ? 'text-green-600' : b.compliance >= 80 ? 'text-amber-600' : 'text-red-600'}`}>
+                                        <span className={`text-sm font-medium w-10 ${b.compliance >= 95 ? 'text-green-600 dark:text-green-400' : b.compliance >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
                                             {b.compliance}%
                                         </span>
-                                        <div className="flex-1 h-2 bg-gray-100 rounded-full ml-2 overflow-hidden max-w-[100px]">
+                                        <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full ml-2 overflow-hidden max-w-[100px]">
                                             <div
                                                 className={`h-full rounded-full ${b.compliance >= 95 ? 'bg-green-500' : b.compliance >= 80 ? 'bg-amber-500' : 'bg-red-500'}`}
                                                 style={{ width: `${b.compliance}%` }}
@@ -176,19 +175,19 @@ const BuildingsView = () => {
                                     <div className="flex items-center justify-end space-x-2">
                                         <button
                                             onClick={(e) => handleManageTags(b, e)}
-                                            className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                            className="p-2 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
                                             title="Manage NFC Tags"
                                         >
                                             <QrCode size={18} />
                                         </button>
                                         <button
                                             onClick={(e) => handleConfigure(b, e)}
-                                            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                                            className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                             title="Building Settings"
                                         >
                                             <Settings size={18} />
                                         </button>
-                                        <ChevronRight size={18} className="text-gray-300 group-hover:text-gray-500" />
+                                        <ChevronRight size={18} className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400" />
                                     </div>
                                 </td>
                             </tr>

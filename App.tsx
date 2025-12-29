@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { CleaningLog, ShiftReport } from './types';
-import { MOCK_BUILDING, MOCK_USERS } from './constants';
+import { CleaningLog, ShiftReport, Building } from './types';
+import { MOCK_BUILDING, ALL_BUILDINGS, MOCK_USERS } from './constants';
 import FloorPlan from './components/FloorPlan';
 import LogFeed from './components/LogFeed';
 import StatsOverview from './components/StatsOverview';
@@ -22,14 +22,28 @@ function App() {
   const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'floorplan' | 'grid'>('floorplan');
 
+  // Building State - track currently selected building
+  const [selectedBuilding, setSelectedBuilding] = useState<Building>(MOCK_BUILDING);
+
   // Real-time Data Hook
-  // Note: We still use MOCK_BUILDING for the ID, but the data is now live from Firestore
-  const { logs, checkpoints, loading } = useFirestoreData(MOCK_BUILDING.id);
+  // Note: Data is filtered by the selected building ID
+  const { logs, checkpoints, loading } = useFirestoreData(selectedBuilding.id);
 
   // Report State
   const [reportLoading, setReportLoading] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<ShiftReport | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+
+  // Handle building change from Header dropdown
+  const handleBuildingChange = (buildingId: string) => {
+    const building = ALL_BUILDINGS.find(b => b.id === buildingId);
+    if (building) {
+      setSelectedBuilding(building);
+      // Reset checkpoint selection when switching buildings
+      setSelectedCheckpointId(null);
+      console.log(`Switched to building: ${building.name}`);
+    }
+  };
 
   const handleGenerateReport = async () => {
     setReportLoading(true);
@@ -44,17 +58,17 @@ function App() {
   // Loading State
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <Loader2 size={40} className="animate-spin text-blue-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900">Connecting to VeriClean Live...</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Connecting to VeriClean Live...</h2>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50 text-gray-900 font-sans selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans selection:bg-blue-100 selection:text-blue-900 transition-colors duration-200">
 
       <Sidebar
         activeTab={activeTab}
@@ -65,35 +79,40 @@ function App() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
 
-        <Header building={MOCK_BUILDING} />
+        <Header
+          building={selectedBuilding}
+          buildings={ALL_BUILDINGS.map(b => ({ id: b.id, name: b.name, city: `${b.address.city}, ${b.address.state}` }))}
+          onBuildingChange={handleBuildingChange}
+          onNavigateToSettings={() => setActiveTab('settings')}
+        />
 
         {/* Dynamic Content Area */}
         <div className="p-6 overflow-y-auto h-[calc(100vh-80px)] scroll-smooth">
           {activeTab === 'dashboard' && (
             <>
-              <StatsOverview />
+              <StatsOverview buildingId={selectedBuilding.id} buildingName={selectedBuilding.name} />
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
                 {/* Left Column: Floor Plan (2/3 width) */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex-1 flex flex-col transition-all hover:shadow-md overflow-hidden">
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex-1 flex flex-col transition-all hover:shadow-md overflow-hidden">
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                         {viewMode === 'floorplan' ? 'Live Building View' : 'Room Status Grid'}
                       </h3>
                       <div className="flex items-center gap-3">
                         {/* View Toggle */}
-                        <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
                           <button
                             onClick={() => setViewMode('floorplan')}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'floorplan' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'floorplan' ? 'bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                             title="Floor Plan View"
                           >
                             <MapIcon size={16} />
                           </button>
                           <button
                             onClick={() => setViewMode('grid')}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                             title="Grid View"
                           >
                             <LayoutGrid size={16} />
@@ -115,6 +134,7 @@ function App() {
                         <FloorPlan
                           checkpoints={checkpoints}
                           selectedCheckpointId={selectedCheckpointId}
+                          buildingId={selectedBuilding.id}
                           onSelectCheckpoint={(id) => {
                             setSelectedCheckpointId(id);
                             const logsForCp = logs.filter(l => l.checkpoint_id === id);
