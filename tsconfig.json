@@ -6,8 +6,7 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
 
-    /* Use 'Bundler' for Vite, or 'Node' for wider compatibility */
-    "moduleResolution": "Node", 
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -17,11 +16,15 @@
     "allowSyntheticDefaultImports": true, 
     "esModuleInterop": true,
 
-    "strict": false, /* Temporarily set to false to clear 'implicit any' errors for demo */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "App.tsx", "index.tsx", "services", "components", "types.ts"]
+  "include": ["src", "App.tsx", "index.tsx", "services", "components", "types.ts", "constants.tsx"]
 }

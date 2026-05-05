@@ -1,93 +1,241 @@
-# Cleanvee: The Janitorial Command Center
+# Cleanvee — Facility Management Command Center
 
-![Status](https://img.shields.io/badge/Status-Beta-blue)
-![Tech](https://img.shields.io/badge/Built%20With-Flutter%20%7C%20Firebase%20%7C%20TensorFlow-02569B)
-![License](https://img.shields.io/badge/License-MIT-green)
+> AI-powered cleaning verification and compliance tracking for facility managers.
 
-**Cleanvee** is a "Control-Based" facility management system designed to replace paper logs with digital verification. By combining cryptographic proof-of-presence with edge-based computer vision, we provide facility managers with indisputable proof that work was performed to standard.
+[![CI](https://github.com/Ishwarpatra/Cleanvee/actions/workflows/ci.yml/badge.svg)](https://github.com/Ishwarpatra/Cleanvee/actions/workflows/ci.yml)
 
 ---
 
-## 🛑 The Problem: The "Invisibility" of Cleaning
-In the $78B commercial cleaning industry, work is inherently "invisible." Once a cleaner leaves a room, there is no physical evidence of their labor other than the absence of dirt. 
-*   **Trust Gap:** Managers cannot physically inspect every room every day.
-*   **"Pencil Whipping":** Paper logs are easily falsified, leading to broken Service Level Agreements (SLAs) and lost contracts.
-*   **Subjectivity:** "Clean" is subjective. One person's "clean" is another person's "missed spot."
+## Overview
 
-## 🛡️ The Solution: Trust, But Verify
-Cleanvee bridges the trust gap using a **Two-Factor Verification** protocol:
+Cleanvee is a React + TypeScript dashboard for tracking cleaning operations across multiple buildings. It uses NFC-based proof-of-presence, AI quality scoring, and real-time Firestore data to give facility managers live compliance visibility.
 
-1.  **Proof of Presence (NFC):** 
-    *   Cleaners must tap a cryptographically secure NTAG213 sticker installed at the location.
-    *   This generates a `proof_of_presence` timestamp and location hash that cannot be spoofed by GPS mocking.
-
-2.  **Proof of Quality (Edge AI):**
-    *   Before a log can be submitted, the cleaner captures a photo of the area.
-    *   **On-Device AI (TFLite)** analyzes the image in <200ms without internet.
-    *   The AI detects hazards (spills, overflowing trash) and generates a quality score.
-    *   **Green (<4h):** Compliant. **Yellow (>4h):** Warning. **Red:** Critical/Failed.
+**Works in demo mode without any Firebase configuration** — the app automatically falls back to mock data when environment variables are not set.
 
 ---
 
-## 🏗️ Tech Stack
-
-### Mobile App (The Edge)
-*   **Framework:** Flutter (iOS & Android)
-*   **Local Database:** Hive (NoSQL) for offline-first synchronization.
-*   **Computer Vision:** TensorFlow Lite (MobileNetV2 SSD) running via `tflite_flutter` with NNAPI/CoreML delegates.
-*   **Hardware:** NTAG213 NFC Integration.
-
-### Web Dashboard (The Command Center)
-*   **Frontend:** React, TypeScript, Vite, Tailwind CSS.
-*   **Visualization:** Recharts for analytics, Custom Grid Layouts for Live Floor Plans.
-
-### Backend (The Cloud)
-*   **Core:** Firebase (Auth, Firestore, Storage).
-*   **Compute:** Google Cloud Functions (TypeScript) for SLA monitoring and event triggers.
-*   **Analytics:** Google Gemini API for automated Shift Reporting and natural language insights.
-
----
-
-## 🚀 Setup Guide
+## Quick Start
 
 ### Prerequisites
-*   Flutter SDK (3.x+)
-*   Node.js & npm
-*   Firebase CLI
+- Node.js 20+
+- npm 9+
 
-### Installation
+### 1. Clone and install
+```bash
+git clone https://github.com/Ishwarpatra/Cleanvee.git
+cd Cleanvee
+npm install
+```
 
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/your-org/cleanvee.git
-    cd cleanvee
-    ```
+### 2. Configure environment (optional — app works without this)
+```bash
+cp .env.example .env.local
+# Edit .env.local with your Firebase credentials
+```
 
-2.  **Mobile App Setup**
-    ```bash
-    cd mobile_app
-    flutter pub get
-    # Ensure you have an Android Emulator or iOS Simulator running
-    flutter run
-    ```
+### 3. Run development server
+```bash
+npm run dev
+# Open http://localhost:5173
+```
 
-3.  **Dashboard Setup**
-    ```bash
-    cd web_dashboard
-    npm install
-    npm run dev
-    ```
-
-4.  **Firebase Configuration**
-    *   Place your `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) in the respective Flutter directories.
-    *   Set up your `.env` file with `VITE_FIREBASE_API_KEY` for the web dashboard.
-
-## 📱 Offline-First Architecture
-Cleanvee utilizes a "Store-and-Forward" architecture. 
-1.  **Download:** When online, the app downloads a "Manifest" of Model Weights and Reference Images.
-2.  **Verify:** The app functions 100% offline, storing logs in a local Hive queue.
-3.  **Sync:** A background WorkManager job uploads logs and high-res photos to Cloud Storage when connectivity is restored.
+The app runs in **demo mode** if Firebase credentials are not provided, showing realistic mock data.
 
 ---
 
-*Copyright © 2024 Cleanvee Technologies.*
+## Project Structure
+
+```
+cleanvee/
+├── App.tsx                    # Root component (routing, layout)
+├── types.ts                   # All TypeScript interfaces and enums
+├── constants.tsx              # Mock data and building definitions
+├── components/
+│   ├── DashboardGrid.tsx      # Room status grid view
+│   ├── FloorPlan.tsx          # Interactive floor plan
+│   ├── Header.tsx             # Top navigation bar
+│   ├── LogFeed.tsx            # Real-time cleaning log feed
+│   ├── ReportModal.tsx        # AI shift report modal
+│   ├── SettingsView.tsx       # Persistent settings panel
+│   ├── Sidebar.tsx            # Navigation sidebar
+│   ├── StatsOverview.tsx      # KPI stats cards
+│   ├── TeamView.tsx           # Team management
+│   ├── BuildingsView.tsx      # Building management
+│   ├── modals/                # Modal components
+│   └── ui/
+│       ├── ErrorBoundary.tsx  # React error boundary
+│       ├── DemoModeBanner.tsx # Demo mode indicator
+│       ├── Modal.tsx          # Base modal
+│       ├── NotificationDropdown.tsx
+│       └── ProfileDropdown.tsx
+├── src/
+│   ├── contexts/
+│   │   ├── AppContext.tsx     # Global app state (useReducer)
+│   │   ├── SettingsContext.tsx # Persistent settings
+│   │   └── ThemeContext.tsx   # Dark/light mode
+│   ├── hooks/
+│   │   ├── useFirestoreData.ts # Real-time data + mock fallback
+│   │   └── useAuth.ts         # Authentication state
+│   └── test/
+│       ├── setup.ts           # Test setup
+│       └── types.test.ts      # Type validation tests
+├── services/
+│   ├── geminiService.ts       # Gemini AI integration
+│   ├── mcpServer.ts           # MCP data privacy layer
+│   └── privacy/               # PII filtering
+├── functions/
+│   └── src/
+│       ├── index.ts           # Cloud Functions entry
+│       ├── analytics.ts       # BigQuery streaming
+│       └── slaMonitor.ts      # SLA watchdog
+├── firestore.rules            # Security rules (role-based)
+├── firestore.indexes.json     # Composite indexes
+└── .github/
+    └── workflows/ci.yml       # GitHub Actions CI/CD
+```
+
+---
+
+## Architecture
+
+### SOLID Principles Applied
+
+| Principle | Implementation |
+|-----------|---------------|
+| **Single Responsibility** | Each context manages one concern; types.ts is types-only |
+| **Open/Closed** | New settings fields extend `AppSettings` type without modifying `SettingsContext` |
+| **Liskov Substitution** | `useFirestoreData` returns same interface whether using live or mock data |
+| **Interface Segregation** | Components receive only the props they need |
+| **Dependency Inversion** | Components depend on context hooks, not Firebase SDK directly |
+
+### Data Flow
+
+```
+Firebase Firestore ──► useFirestoreData hook ──► AppContext ──► Components
+       │                       │
+       │              (fallback to mock data
+       │               if Firebase not configured)
+       │
+Firebase Auth ──► useAuth hook ──► Permission helpers ──► UI visibility
+```
+
+### Settings Persistence
+
+Settings are stored in two layers:
+1. **localStorage** — instant, offline-first, survives page reload
+2. **Firestore** (optional) — synced to cloud when Firebase is configured
+
+---
+
+## Firebase Setup (Optional)
+
+1. Create a project at [Firebase Console](https://console.firebase.google.com)
+2. Enable **Firestore**, **Authentication** (Email/Password), and **Hosting**
+3. Copy credentials to `.env.local`
+4. Deploy security rules: `firebase deploy --only firestore:rules`
+5. Deploy indexes: `firebase deploy --only firestore:indexes`
+
+### Firestore Collections
+
+| Collection | Description |
+|------------|-------------|
+| `users` | User profiles with role and building assignments |
+| `buildings` | Building metadata and SLA configuration |
+| `checkpoints` | NFC checkpoint locations per building |
+| `cleaning_logs` | Immutable cleaning event records |
+| `alerts` | SLA breach and quality alerts |
+| `daily_stats` | Aggregated daily statistics |
+| `app_config` | Global application settings |
+
+---
+
+## CI/CD
+
+The GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push:
+
+1. **TypeScript type check** — `tsc --noEmit`
+2. **Build** — `vite build` with empty env vars (demo mode)
+3. **Cloud Function tests** — Jest unit tests
+4. **Security audit** — `npm audit --audit-level=high`
+5. **Deploy** — Firebase Hosting (main branch only, requires secrets)
+
+### Required GitHub Secrets (for deployment)
+
+| Secret | Description |
+|--------|-------------|
+| `VITE_FIREBASE_API_KEY` | Firebase web API key |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase auth domain |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
+| `VITE_FIREBASE_APP_ID` | Firebase app ID |
+| `VITE_GEMINI_API_KEY` | Google Gemini API key |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON (for deployment) |
+
+---
+
+## Testing
+
+```bash
+# Run unit tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+
+# Run Cloud Function tests
+cd functions && npm test
+```
+
+---
+
+## Known Limitations
+
+- **Mobile app** (Flutter) is not yet implemented — the Dart files are stubs
+- **NFC integration** requires the Flutter mobile app
+- **TFLite inference** requires the Flutter mobile app
+- **Push notifications** require Firebase Cloud Messaging setup
+- **Gemini shift reports** require a valid `VITE_GEMINI_API_KEY`
+
+---
+
+## Roadmap
+
+See [CRITICAL PATH TO MVP](docs/roadmap.md) for the prioritized implementation plan.
+
+**Week 1 (Foundation):**
+- [x] Firestore real-time listeners with mock fallback
+- [x] Settings persistence (localStorage + Firestore)
+- [x] TypeScript strict mode
+- [x] Error boundaries on all views
+- [x] CI/CD pipeline
+
+**Week 2 (Core Features):**
+- [ ] Firebase Auth login screen
+- [ ] Role-based route guards
+- [ ] SLA violation Cloud Function (implemented, needs deployment)
+- [ ] Rejection workflow UI
+
+**Week 3 (Mobile):**
+- [ ] Flutter app skeleton
+- [ ] NFC reader integration
+- [ ] Offline queue with Hive
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feat/your-feature`)
+3. Commit changes (`git commit -m 'feat: add your feature'`)
+4. Push to branch (`git push origin feat/your-feature`)
+5. Open a Pull Request (use the PR template)
+
+---
+
+## License
+
+Private — All rights reserved.

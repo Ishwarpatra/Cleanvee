@@ -203,3 +203,11 @@ export const INITIAL_LOGS: CleaningLog[] = [
     }
   }
 ];
+// ---- Helper functions for building-specific mock data ----
+export function getMockCheckpointsForBuilding(buildingId: string): import('./types').Checkpoint[] {
+  return MOCK_CHECKPOINTS.filter(cp => cp.building_id === buildingId);
+}
+
+export function getMockLogsForBuilding(buildingId: string): import('./types').CleaningLog[] {
+  return INITIAL_LOGS.filter(log => log.building_id === buildingId);
+}
