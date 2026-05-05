@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
-import { CleaningLog, ShiftReport, Building } from './types';
-import { MOCK_BUILDING, ALL_BUILDINGS, MOCK_USERS } from './constants';
+/**
+ * App.tsx — Root application component
+ * SOLID: Single Responsibility (routing/layout), Dependency Inversion (AppContext)
+ * Fixes: AppContext replaces 8 useState calls, ErrorBoundary on all views,
+ *        DemoModeBanner when Firebase not configured, URL hash navigation
+ */
+import React, { useEffect, useState } from 'react';
+import { CleaningLog, ShiftReport } from './types';
+import { MOCK_USERS } from './constants';
 import FloorPlan from './components/FloorPlan';
 import LogFeed from './components/LogFeed';
 import StatsOverview from './components/StatsOverview';
@@ -11,269 +17,183 @@ import DashboardGrid from './components/DashboardGrid';
 import TeamView from './components/TeamView';
 import BuildingsView from './components/BuildingsView';
 import SettingsView from './components/SettingsView';
+import ErrorBoundary from './components/ui/ErrorBoundary';
+import DemoModeBanner from './components/ui/DemoModeBanner';
 import { generateShiftReport } from './services/geminiService';
-import { useFirestoreData } from "./src/hooks/useFirestoreData";
-
-import { X, Camera, Check, AlertTriangle, MapPin, Scan, LayoutGrid, Map as MapIcon, Loader2 } from 'lucide-react';
+import { useFirestoreData } from './src/hooks/useFirestoreData';
+import { useAppContext } from './src/contexts/AppContext';
+import { X, Camera, Check, MapPin, Scan, LayoutGrid, Map as MapIcon, Loader2, AlertCircle } from 'lucide-react';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [selectedLog, setSelectedLog] = useState<CleaningLog | null>(null);
-  const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'floorplan' | 'grid'>('floorplan');
-
-  // Building State - track currently selected building
-  const [selectedBuilding, setSelectedBuilding] = useState<Building>(MOCK_BUILDING);
-
-  // Real-time Data Hook
-  // Note: Data is filtered by the selected building ID
-  const { logs, checkpoints, stats, loading } = useFirestoreData(selectedBuilding.id);
-
-  // Report State
-  const [reportLoading, setReportLoading] = useState(false);
+  const { state, setActiveTab, setBuilding, setCheckpoint, setLog, setViewMode, setShowReportModal, setReportLoading, setError } = useAppContext();
+  const { activeTab, selectedBuilding, selectedCheckpointId, selectedLog, viewMode, showReportModal, reportLoading, error: appError } = state;
+  const { logs, checkpoints, stats, loading, error: dataError, isUsingMockData } = useFirestoreData(selectedBuilding.id);
   const [generatedReport, setGeneratedReport] = useState<ShiftReport | null>(null);
-  const [showReportModal, setShowReportModal] = useState(false);
 
-  // Handle building change from Header dropdown
-  const handleBuildingChange = (buildingId: string) => {
-    const building = ALL_BUILDINGS.find(b => b.id === buildingId);
-    if (building) {
-      setSelectedBuilding(building);
-      // Reset checkpoint selection when switching buildings
-      setSelectedCheckpointId(null);
-      console.log(`Switched to building: ${building.name}`);
-    }
-  };
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (['dashboard', 'buildings', 'team', 'settings'].includes(hash)) setActiveTab(hash);
+  }, [setActiveTab]);
+
+  useEffect(() => { window.location.hash = activeTab; }, [activeTab]);
 
   const handleGenerateReport = async () => {
     setReportLoading(true);
     setShowReportModal(true);
-    const report = await generateShiftReport(logs, checkpoints);
-    setGeneratedReport(report);
-    setReportLoading(false);
+    setGeneratedReport(null);
+    try {
+      const report = await generateShiftReport(logs, checkpoints);
+      setGeneratedReport(report);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Report generation failed');
+    } finally {
+      setReportLoading(false);
+    }
   };
 
-  const selectedCheckpoint = checkpoints.find(c => c.id === selectedCheckpointId);
+  const handleSelectCheckpoint = (id: string) => {
+    setCheckpoint(id);
+    const first = logs.find(l => l.checkpoint_id === id);
+    if (first) setLog(first);
+  };
 
-  // Loading State
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <Loader2 size={40} className="animate-spin text-blue-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Connecting to Cleanvee Live...</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Connecting to Cleanvee...</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Loading building data</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans selection:bg-blue-100 selection:text-blue-900 transition-colors duration-200">
-
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onGenerateReport={handleGenerateReport}
-      />
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-
-        <Header
-          building={selectedBuilding}
-          buildings={ALL_BUILDINGS.map(b => ({ id: b.id, name: b.name, city: `${b.address.city}, ${b.address.state}` }))}
-          onBuildingChange={handleBuildingChange}
-          onNavigateToSettings={() => setActiveTab('settings')}
-        />
-
-        {/* Dynamic Content Area */}
-        <div className="p-6 overflow-y-auto h-[calc(100vh-80px)] scroll-smooth">
-          {activeTab === 'dashboard' && (
-            <>
-              <StatsOverview buildingId={selectedBuilding.id} buildingName={selectedBuilding.name} aggregatedStats={stats} />
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
-                {/* Left Column: Floor Plan (2/3 width) */}
-                <div className="lg:col-span-2 flex flex-col gap-6">
-                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex-1 flex flex-col transition-all hover:shadow-md overflow-hidden">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                        {viewMode === 'floorplan' ? 'Live Building View' : 'Room Status Grid'}
-                      </h3>
-                      <div className="flex items-center gap-3">
-                        {/* View Toggle */}
-                        <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-                          <button
-                            onClick={() => setViewMode('floorplan')}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'floorplan' ? 'bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
-                            title="Floor Plan View"
-                          >
-                            <MapIcon size={16} />
-                          </button>
-                          <button
-                            onClick={() => setViewMode('grid')}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
-                            title="Grid View"
-                          >
-                            <LayoutGrid size={16} />
-                          </button>
-                        </div>
-
-                        {viewMode === 'floorplan' && (
-                          <div className="hidden sm:flex gap-2 text-xs font-medium border-l border-gray-200 pl-3">
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></div>Clean</div>
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></div>Review</div>
-                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm animate-pulse"></div>Hazard</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex-1 relative overflow-y-auto custom-scrollbar">
-                      {viewMode === 'floorplan' ? (
-                        <FloorPlan
-                          checkpoints={checkpoints}
-                          selectedCheckpointId={selectedCheckpointId}
-                          buildingId={selectedBuilding.id}
-                          onSelectCheckpoint={(id) => {
-                            setSelectedCheckpointId(id);
-                            const logsForCp = logs.filter(l => l.checkpoint_id === id);
-                            if (logsForCp.length > 0) setSelectedLog(logsForCp[0]);
-                          }}
-                        />
-                      ) : (
-                        <DashboardGrid
-                          checkpoints={checkpoints}
-                          logs={logs}
-                          onSelectCheckpoint={(id) => {
-                            setSelectedCheckpointId(id);
-                            const logsForCp = logs.filter(l => l.checkpoint_id === id);
-                            if (logsForCp.length > 0) setSelectedLog(logsForCp[0]);
-                          }}
-                        />
-                      )}
-                    </div>
-
-                    {selectedCheckpoint && viewMode === 'floorplan' && (
-                      <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm flex justify-between items-center">
-                        <div>
-                          <p className="font-semibold text-gray-900">{selectedCheckpoint.location_label}</p>
-                          <p className="text-gray-500 text-xs">Model: {selectedCheckpoint.ai_config.model_version}</p>
-                        </div>
-                        <span className="px-2 py-1 bg-gray-200 rounded text-xs text-gray-600 font-mono">
-                          ID: {selectedCheckpoint.id.split('-')[1]}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right Column: Feed (1/3 width) */}
-                <div className="h-full">
-                  <LogFeed
-                    logs={logs}
-                    checkpoints={checkpoints}
-                    users={MOCK_USERS}
-                    onSelectLog={(log) => {
-                      setSelectedLog(log);
-                      setSelectedCheckpointId(log.checkpoint_id);
-                    }}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          {activeTab === 'team' && <TeamView />}
-          {activeTab === 'buildings' && <BuildingsView />}
-          {activeTab === 'settings' && <SettingsView />}
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans transition-colors duration-200">
+      {isUsingMockData && <DemoModeBanner message={dataError ?? 'Firebase not configured — displaying demo data.'} />}
+      {appError && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 text-sm text-red-800 dark:text-red-300">
+          <AlertCircle size={16} className="flex-shrink-0" />
+          <span className="flex-1">{appError}</span>
+          <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 dark:hover:bg-red-800/50 rounded transition-colors"><X size={14} /></button>
         </div>
-      </main>
+      )}
+      <div className="flex flex-1 min-h-0">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onGenerateReport={() => void handleGenerateReport()} />
+        <main className="flex-1 flex flex-col min-w-0">
+          <Header
+            building={selectedBuilding}
+            buildings={[
+              { id: 'bldg-001', name: 'Apex Tower HQ', city: 'San Francisco, CA' },
+              { id: 'bldg-002', name: 'Westside Logistics', city: 'Oakland, CA' },
+              { id: 'bldg-003', name: 'Downtown Medical Center', city: 'San Jose, CA' },
+              { id: 'bldg-004', name: 'Tech Campus Alpha', city: 'Palo Alto, CA' },
+            ]}
+            onBuildingChange={setBuilding}
+            onNavigateToSettings={() => setActiveTab('settings')}
+          />
+          <div className="p-6 overflow-y-auto flex-1 scroll-smooth">
+            {activeTab === 'dashboard' && (
+              <ErrorBoundary componentName="Dashboard">
+                <>
+                  <StatsOverview buildingId={selectedBuilding.id} buildingName={selectedBuilding.name} aggregatedStats={stats ?? undefined} />
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+                    <div className="lg:col-span-2 flex flex-col gap-6">
+                      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex-1 flex flex-col transition-all hover:shadow-md overflow-hidden">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="font-semibold text-gray-900 dark:text-white">{viewMode === 'floorplan' ? 'Live Building View' : 'Room Status Grid'}</h3>
+                          <div className="flex items-center gap-3">
+                            <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+                              <button onClick={() => setViewMode('floorplan')} className={`p-1.5 rounded-md transition-all ${viewMode === 'floorplan' ? 'bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`} title="Floor Plan View" aria-label="Floor Plan View"><MapIcon size={16} /></button>
+                              <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`} title="Grid View" aria-label="Grid View"><LayoutGrid size={16} /></button>
+                            </div>
+                            {viewMode === 'floorplan' && (
+                              <div className="hidden sm:flex gap-2 text-xs font-medium border-l border-gray-200 dark:border-gray-600 pl-3">
+                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />Clean</div>
+                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm" />Review</div>
+                                <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm animate-pulse" />Hazard</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-1 relative overflow-y-auto">
+                          <ErrorBoundary componentName={viewMode === 'floorplan' ? 'FloorPlan' : 'DashboardGrid'}>
+                            {viewMode === 'floorplan' ? (
+                              <FloorPlan checkpoints={checkpoints} selectedCheckpointId={selectedCheckpointId} buildingId={selectedBuilding.id} onSelectCheckpoint={handleSelectCheckpoint} />
+                            ) : (
+                              <DashboardGrid checkpoints={checkpoints} logs={logs} onSelectCheckpoint={handleSelectCheckpoint} />
+                            )}
+                          </ErrorBoundary>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="lg:col-span-1 overflow-hidden">
+                      <ErrorBoundary componentName="LogFeed">
+                        <LogFeed logs={logs} checkpoints={checkpoints} users={MOCK_USERS} onSelectLog={(log: CleaningLog) => { setLog(log); setCheckpoint(log.checkpoint_id); }} />
+                      </ErrorBoundary>
+                    </div>
+                  </div>
+                </>
+              </ErrorBoundary>
+            )}
+            {activeTab === 'buildings' && <ErrorBoundary componentName="BuildingsView"><BuildingsView /></ErrorBoundary>}
+            {activeTab === 'team' && <ErrorBoundary componentName="TeamView"><TeamView /></ErrorBoundary>}
+            {activeTab === 'settings' && <ErrorBoundary componentName="SettingsView"><SettingsView /></ErrorBoundary>}
+          </div>
+        </main>
+      </div>
 
-      {/* Log Detail Modal */}
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedLog(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setLog(null)} role="dialog" aria-modal="true" aria-label="Cleaning log detail">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-start">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Verification Detail</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"><Scan size={18} className="text-blue-600" />Cleaning Log Detail</h3>
                 <p className="text-sm text-gray-500 font-mono text-xs mt-1">{selectedLog.id}</p>
               </div>
-              <button onClick={() => setSelectedLog(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                <X size={20} />
-              </button>
+              <button onClick={() => setLog(null)} aria-label="Close log detail" className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"><X size={20} /></button>
             </div>
-
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Proof of Quality (Image + AI) */}
               <div>
-                <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2 tracking-wide">
-                  <Camera size={14} /> Proof of Quality
-                </h4>
-                <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200 relative group shadow-inner">
-                  <img
-                    src={selectedLog.proof_of_quality?.photo_storage_path || "https://picsum.photos/600/600"}
-                    alt="Verification Evidence"
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Overlay bounding box simulation */}
+                <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2 tracking-wide"><Camera size={14} /> Proof of Quality</h4>
+                <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 relative shadow-inner">
+                  <img src={selectedLog.proof_of_quality?.photo_storage_path?.startsWith('gs://') ? 'https://picsum.photos/600/600?grayscale' : (selectedLog.proof_of_quality?.photo_storage_path ?? 'https://picsum.photos/600/600?grayscale')} alt="Verification Evidence" className="w-full h-full object-cover" loading="lazy" />
                   {selectedLog.proof_of_quality?.detected_objects.map((obj, i) => (
-                    <div
-                      key={i}
-                      className="absolute border-2 border-red-500 bg-red-500/10 flex items-end justify-center shadow-sm"
-                      style={{
-                        left: `${obj.bounding_box.x}%`,
-                        top: `${obj.bounding_box.y}%`,
-                        width: `${obj.bounding_box.w}%`,
-                        height: `${obj.bounding_box.h}%`
-                      }}
-                    >
-                      <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 font-bold absolute -top-5 left-0 rounded shadow-sm">
-                        {obj.label} {(obj.confidence * 100).toFixed(0)}%
-                      </span>
+                    <div key={i} className="absolute border-2 border-red-500 bg-red-500/10 flex items-end justify-center shadow-sm" style={{ left: `${obj.bounding_box.x}%`, top: `${obj.bounding_box.y}%`, width: `${obj.bounding_box.w}%`, height: `${obj.bounding_box.h}%` }}>
+                      <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 font-bold absolute -top-5 left-0 rounded shadow-sm">{obj.label} {(obj.confidence * 100).toFixed(0)}%</span>
                     </div>
                   ))}
                 </div>
+                {selectedLog.proof_of_quality && (
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">Quality Score</span>
+                    <span className={`font-bold ${selectedLog.proof_of_quality.overall_score >= 70 ? 'text-green-600' : 'text-red-600'}`}>{selectedLog.proof_of_quality.overall_score}/100</span>
+                  </div>
+                )}
               </div>
-
-              {/* Proof of Presence & Meta */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2 tracking-wide">
-                    <Scan size={14} /> Proof of Presence
-                  </h4>
-                  <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-blue-900 font-semibold">NFC Cryptographic Hash</span>
-                      <Check size={16} className="text-blue-600" />
-                    </div>
-                    <div className="text-[10px] text-blue-600/80 break-all font-mono bg-white/50 p-2 rounded border border-blue-100/50">
-                      {selectedLog.proof_of_presence.nfc_payload_hash}
-                    </div>
-                    <div className="text-xs text-blue-800 font-medium">
-                      Timestamp: <span className="text-gray-600 font-normal">{new Date(selectedLog.proof_of_presence.nfc_tap_timestamp).toLocaleString()}</span>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2 tracking-wide"><Scan size={14} /> Proof of Presence</h4>
+                  <div className="bg-blue-50/50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 space-y-3">
+                    <div className="flex justify-between text-sm"><span className="text-blue-900 dark:text-blue-300 font-semibold">NFC Cryptographic Hash</span><Check size={16} className="text-blue-600" /></div>
+                    <div className="text-[10px] text-blue-600/80 dark:text-blue-400/80 break-all font-mono bg-white/50 dark:bg-gray-800/50 p-2 rounded border border-blue-100/50 dark:border-blue-800/50">{selectedLog.proof_of_presence.nfc_payload_hash}</div>
+                    <div className="text-xs text-blue-800 dark:text-blue-300 font-medium">Timestamp: <span className="text-gray-600 dark:text-gray-400 font-normal">{new Date(selectedLog.proof_of_presence.nfc_tap_timestamp).toLocaleString()}</span></div>
+                  </div>
+                  <div className="bg-blue-50/50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 space-y-3 mt-3">
+                    <div className="flex justify-between text-sm"><span className="text-blue-900 dark:text-blue-300 font-semibold">Geolocation Verified</span><MapPin size={16} className="text-blue-600" /></div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="text-xs text-blue-600/80 dark:text-blue-400/80 bg-white/50 dark:bg-gray-800/50 p-2 rounded text-center"><span className="block font-bold text-blue-900 dark:text-blue-300 text-[10px] uppercase">Lat</span>{selectedLog.proof_of_presence.geo_location?.latitude.toFixed(4)}</div>
+                      <div className="text-xs text-blue-600/80 dark:text-blue-400/80 bg-white/50 dark:bg-gray-800/50 p-2 rounded text-center"><span className="block font-bold text-blue-900 dark:text-blue-300 text-[10px] uppercase">Long</span>{selectedLog.proof_of_presence.geo_location?.longitude.toFixed(4)}</div>
+                      <div className="text-xs text-blue-600/80 dark:text-blue-400/80 bg-white/50 dark:bg-gray-800/50 p-2 rounded text-center"><span className="block font-bold text-blue-900 dark:text-blue-300 text-[10px] uppercase">Accuracy</span>+/-{selectedLog.proof_of_presence.geo_location?.accuracy_meters}m</div>
                     </div>
                   </div>
-
-                  <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3 mt-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-blue-900 font-semibold">Geolocation Verified</span>
-                      <MapPin size={16} className="text-blue-600" />
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="text-xs text-blue-600/80 bg-white/50 p-2 rounded text-center">
-                        <span className="block font-bold text-blue-900 text-[10px] uppercase">Lat</span>
-                        {selectedLog.proof_of_presence.geo_location?.latitude.toFixed(5)}
-                      </div>
-                      <div className="text-xs text-blue-600/80 bg-white/50 p-2 rounded text-center">
-                        <span className="block font-bold text-blue-900 text-[10px] uppercase">Long</span>
-                        {selectedLog.proof_of_presence.geo_location?.longitude.toFixed(5)}
-                      </div>
-                      <div className="text-xs text-blue-600/80 bg-white/50 p-2 rounded text-center">
-                        <span className="block font-bold text-blue-900 text-[10px] uppercase">Accuracy</span>
-                        ±{selectedLog.proof_of_presence.geo_location?.accuracy_meters}m
-                      </div>
-                    </div>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 tracking-wide">Verification Status</h4>
+                  <div className={`p-3 rounded-xl border text-sm font-medium ${selectedLog.verification_result.status === 'verified' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' : selectedLog.verification_result.status === 'rejected' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'}`}>
+                    {selectedLog.verification_result.status.replace('_', ' ').toUpperCase()}
+                    {selectedLog.verification_result.rejection_reason && <p className="text-xs font-normal mt-1 opacity-80">Reason: {selectedLog.verification_result.rejection_reason}</p>}
                   </div>
                 </div>
               </div>
@@ -282,13 +202,7 @@ function App() {
         </div>
       )}
 
-      {showReportModal && (
-        <ReportModal
-          loading={reportLoading}
-          report={generatedReport}
-          onClose={() => setShowReportModal(false)}
-        />
-      )}
+      {showReportModal && <ReportModal loading={reportLoading} report={generatedReport} onClose={() => setShowReportModal(false)} />}
     </div>
   );
 }

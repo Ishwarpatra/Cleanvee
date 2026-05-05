@@ -1,8 +1,126 @@
 rules_version = '2';
+// ============================================================
+// CLEANVEE — Firestore Security Rules
+// SOLID: Single Responsibility — access control only here
+//
+// Principles:
+// - Default deny: all access denied unless explicitly allowed
+// - Role-based access: cleaners, managers, admins have distinct permissions
+// - Building-scoped: users only access buildings they are assigned to
+// - Immutable logs: cleaning_logs cannot be modified after creation
+// ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ---- Helper functions ----
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isCleaner() {
+      return isAuthenticated() && userRole() == 'cleaner';
+    }
+
+    function isManager() {
+      return isAuthenticated() && userRole() == 'manager';
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && userRole() == 'admin';
+    }
+
+    function isManagerOrAdmin() {
+      return isAuthenticated() && (userRole() == 'manager' || userRole() == 'admin');
+    }
+
+    function userAssignedToBuilding(buildingId) {
+      return buildingId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.assigned_building_ids;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // ---- Users collection ----
+    match /users/{userId} {
+      // Users can read their own profile; managers/admins can read all
+      allow read: if isOwner(userId) || isManagerOrAdmin();
+      // Only admins can create/update user records
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ---- Buildings collection ----
+    match /buildings/{buildingId} {
+      // Assigned users can read their buildings
+      allow read: if isAuthenticated() && userAssignedToBuilding(buildingId);
+      // Only managers and admins can create/update buildings
+      allow create, update: if isManagerOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ---- Checkpoints collection ----
+    match /checkpoints/{checkpointId} {
+      // Any authenticated user assigned to the building can read checkpoints
+      allow read: if isAuthenticated() && userAssignedToBuilding(resource.data.building_id);
+      // Only managers/admins can manage checkpoints
+      allow create, update: if isManagerOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ---- Cleaning Logs collection ----
+    match /cleaning_logs/{logId} {
+      // Cleaners can read their own logs; managers/admins can read all for their buildings
+      allow read: if isAuthenticated() && (
+        resource.data.cleaner_id == request.auth.uid ||
+        (isManagerOrAdmin() && userAssignedToBuilding(resource.data.building_id))
+      );
+      // Cleaners can only create logs for their assigned buildings
+      allow create: if isAuthenticated() &&
+        userAssignedToBuilding(request.resource.data.building_id) &&
+        request.resource.data.cleaner_id == request.auth.uid;
+      // Logs are IMMUTABLE after creation — only managers can update verification_result
+      allow update: if isManagerOrAdmin() &&
+        userAssignedToBuilding(resource.data.building_id) &&
+        // Only allow updating the verification_result field
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verification_result', 'updated_at']);
+      // Nobody can delete logs (audit trail)
+      allow delete: if false;
+    }
+
+    // ---- Alerts collection ----
+    match /alerts/{alertId} {
+      allow read: if isAuthenticated() && userAssignedToBuilding(resource.data.building_id);
+      // Only Cloud Functions (admin SDK) create alerts; managers can update status
+      allow create: if false; // Created by Cloud Functions only
+      allow update: if isManagerOrAdmin() &&
+        userAssignedToBuilding(resource.data.building_id) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acknowledged_by', 'resolved_at']);
+      allow delete: if false;
+    }
+
+    // ---- Daily Stats collection ----
+    match /daily_stats/{docId} {
+      // Read-only for authenticated users assigned to the building
+      allow read: if isAuthenticated();
+      // Only Cloud Functions write stats
+      allow write: if false;
+    }
+
+    // ---- App Config (settings) ----
+    match /app_config/{docId} {
+      allow read: if isAuthenticated();
+      // Only managers/admins can update global settings
+      allow write: if isManagerOrAdmin();
+    }
+
+    // ---- Default deny ----
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

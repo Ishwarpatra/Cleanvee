@@ -1,343 +1,118 @@
-import React, { useState } from 'react';
-import { Shield, Smartphone, Zap, Bell, Clock, Database, Globe, UserCog, Save, RotateCcw } from 'lucide-react';
+/**
+ * SettingsView — System configuration panel
+ * SOLID: Single Responsibility (UI only), Dependency Inversion (useSettings hook)
+ * Fixes: persistence, validation, loading state, dark mode toggle
+ */
+import React from 'react';
+import { Shield, Smartphone, Zap, Bell, Clock, Database, Save, RotateCcw, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { useSettings } from '../src/contexts/SettingsContext';
+import { useTheme } from '../src/contexts/ThemeContext';
 
-interface ToggleProps {
-    enabled: boolean;
-    onChange: () => void;
-}
+interface ToggleProps { enabled: boolean; onChange: () => void; disabled?: boolean; label?: string; }
+const Toggle: React.FC<ToggleProps> = ({ enabled, onChange, disabled, label }) => (
+  <button onClick={onChange} disabled={disabled} aria-label={label} aria-pressed={enabled}
+    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+  </button>
+);
 
-const Toggle: React.FC<ToggleProps> = ({ enabled, onChange }) => (
-    <button
-        onClick={onChange}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'
-            }`}
-    >
-        <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${enabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-        />
-    </button>
+interface NumberInputProps { value: number; onChange: (v: number) => void; min: number; max: number; step?: number; label: string; unit?: string; disabled?: boolean; }
+const NumberInput: React.FC<NumberInputProps> = ({ value, onChange, min, max, step = 1, label, unit, disabled }) => {
+  const isInvalid = value < min || value > max;
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <input type="number" value={value} min={min} max={max} step={step} disabled={disabled} aria-label={label}
+          onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) onChange(v); }}
+          className={`w-24 px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 dark:bg-gray-700 dark:text-white transition-colors ${isInvalid ? 'border-red-400 focus:ring-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 focus:ring-blue-400 bg-white'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`} />
+        {unit && <span className="text-xs text-gray-500 dark:text-gray-400">{unit}</span>}
+      </div>
+      {isInvalid && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={10} /> Must be between {min} and {max}</p>}
+    </div>
+  );
+};
+
+interface SectionProps { icon: React.ReactNode; title: string; description: string; children: React.ReactNode; }
+const Section: React.FC<SectionProps> = ({ icon, title, description, children }) => (
+  <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
+    <div className="flex items-center gap-3 mb-5">
+      <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">{icon}</div>
+      <div><h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3><p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p></div>
+    </div>
+    <div className="space-y-4">{children}</div>
+  </div>
+);
+
+interface SettingRowProps { label: string; description?: string; children: React.ReactNode; }
+const SettingRow: React.FC<SettingRowProps> = ({ label, description, children }) => (
+  <div className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-gray-700/50 last:border-0">
+    <div className="flex-1 mr-4">
+      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</p>
+      {description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>}
+    </div>
+    {children}
+  </div>
 );
 
 const SettingsView: React.FC = () => {
-    // AI Settings
-    const [qualityThreshold, setQualityThreshold] = useState(70);
-    const [flagYellowAlerts, setFlagYellowAlerts] = useState(true);
-    const [autoReviewLowScores, setAutoReviewLowScores] = useState(true);
-
-    // Mobile App Settings
-    const [requireGps, setRequireGps] = useState(true);
-    const [allowOffline, setAllowOffline] = useState(true);
-    const [photoRequired, setPhotoRequired] = useState(true);
-    const [maxOfflineHours, setMaxOfflineHours] = useState(4);
-
-    // Notification Settings
-    const [emailNotifications, setEmailNotifications] = useState(true);
-    const [pushNotifications, setPushNotifications] = useState(true);
-    const [slaAlerts, setSlaAlerts] = useState(true);
-    const [digestFrequency, setDigestFrequency] = useState('daily');
-
-    // SLA Settings
-    const [maxCleaningInterval, setMaxCleaningInterval] = useState(4);
-    const [gracePeriod, setGracePeriod] = useState(15);
-
-    const [hasChanges, setHasChanges] = useState(false);
-
-    const handleSave = () => {
-        setHasChanges(false);
-    };
-
-    const handleReset = () => {
-        setQualityThreshold(70);
-        setFlagYellowAlerts(true);
-        setAutoReviewLowScores(true);
-        setRequireGps(true);
-        setAllowOffline(true);
-        setPhotoRequired(true);
-        setMaxOfflineHours(4);
-        setEmailNotifications(true);
-        setPushNotifications(true);
-        setSlaAlerts(true);
-        setDigestFrequency('daily');
-        setMaxCleaningInterval(4);
-        setGracePeriod(15);
-        setHasChanges(false);
-    };
-
-    const markChanged = () => setHasChanges(true);
-
-    return (
-        <div className="max-w-4xl space-y-8">
-            {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">System Settings</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configure AI thresholds, mobile policies, and notifications</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleReset}
-                        className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
-                    >
-                        <RotateCcw size={16} />
-                        Reset to Defaults
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={!hasChanges}
-                        className={`px-5 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm ${hasChanges
-                            ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                            }`}
-                    >
-                        <Save size={16} />
-                        Save Changes
-                    </button>
-                </div>
-            </div>
-
-            {/* AI Configuration Section */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-purple-100 to-violet-100 dark:from-purple-900/40 dark:to-violet-900/40 rounded-xl mr-4">
-                        <Zap className="text-purple-600 dark:text-purple-400" size={22} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">AI & Verification Thresholds</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Configure how the AI evaluates cleaning quality</p>
-                    </div>
-                </div>
-
-                <div className="space-y-6">
-                    {/* Quality Score Slider */}
-                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                        <div className="flex justify-between items-center mb-3">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Minimum Quality Score (Pass/Fail)</label>
-                            <span className="text-lg font-bold text-purple-600 dark:text-purple-400">{qualityThreshold}%</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="50"
-                            max="95"
-                            value={qualityThreshold}
-                            onChange={(e) => { setQualityThreshold(Number(e.target.value)); markChanged(); }}
-                            className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
-                            <span className="flex items-center gap-1">
-                                <span className="w-2 h-2 bg-amber-400 rounded-full"></span>
-                                Lenient (50%)
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                                Strict (95%)
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Toggle Options */}
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                            <div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Flag "Yellow" Alerts automatically</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Items requiring manual review are flagged</span>
-                            </div>
-                            <Toggle enabled={flagYellowAlerts} onChange={() => { setFlagYellowAlerts(!flagYellowAlerts); markChanged(); }} />
-                        </div>
-
-                        <div className="flex items-center justify-between py-3">
-                            <div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Auto-escalate scores below threshold</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Low scores trigger supervisor review</span>
-                            </div>
-                            <Toggle enabled={autoReviewLowScores} onChange={() => { setAutoReviewLowScores(!autoReviewLowScores); markChanged(); }} />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Mobile App Policy Section */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900/40 dark:to-cyan-900/40 rounded-xl mr-4">
-                        <Smartphone className="text-blue-600 dark:text-blue-400" size={22} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Mobile App Policy</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Control how the cleaner app captures data</p>
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                        <div className="flex items-center gap-3">
-                            <Globe size={18} className="text-blue-500" />
-                            <div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Require GPS location for all NFC scans</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Ensures location verification on each scan</span>
-                            </div>
-                        </div>
-                        <Toggle enabled={requireGps} onChange={() => { setRequireGps(!requireGps); markChanged(); }} />
-                    </div>
-
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                        <div className="flex items-center gap-3">
-                            <Database size={18} className="text-blue-500" />
-                            <div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Allow offline mode (Store-and-Forward)</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Logs sync when connection is restored</span>
-                            </div>
-                        </div>
-                        <Toggle enabled={allowOffline} onChange={() => { setAllowOffline(!allowOffline); markChanged(); }} />
-                    </div>
-
-                    {allowOffline && (
-                        <div className="ml-8 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-2">Maximum offline duration (hours)</label>
-                            <input
-                                type="number"
-                                min="1"
-                                max="24"
-                                value={maxOfflineHours}
-                                onChange={(e) => { setMaxOfflineHours(Number(e.target.value)); markChanged(); }}
-                                className="w-24 px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                            />
-                        </div>
-                    )}
-
-                    <div className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                            <Shield size={18} className="text-blue-500" />
-                            <div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Require photo evidence for each scan</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">AI verification requires image proof</span>
-                            </div>
-                        </div>
-                        <Toggle enabled={photoRequired} onChange={() => { setPhotoRequired(!photoRequired); markChanged(); }} />
-                    </div>
-                </div>
-            </div>
-
-            {/* SLA Configuration Section */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-emerald-100 to-green-100 dark:from-emerald-900/40 dark:to-green-900/40 rounded-xl mr-4">
-                        <Clock className="text-emerald-600 dark:text-emerald-400" size={22} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">SLA Configuration</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Define service level agreement parameters</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-2">Maximum cleaning interval (hours)</label>
-                        <select
-                            value={maxCleaningInterval}
-                            onChange={(e) => { setMaxCleaningInterval(Number(e.target.value)); markChanged(); }}
-                            className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer"
-                        >
-                            <option value={2}>2 hours</option>
-                            <option value={4}>4 hours</option>
-                            <option value={6}>6 hours</option>
-                            <option value={8}>8 hours</option>
-                            <option value={12}>12 hours</option>
-                            <option value={24}>24 hours</option>
-                        </select>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-2">Grace period before alert (minutes)</label>
-                        <select
-                            value={gracePeriod}
-                            onChange={(e) => { setGracePeriod(Number(e.target.value)); markChanged(); }}
-                            className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer"
-                        >
-                            <option value={5}>5 minutes</option>
-                            <option value={10}>10 minutes</option>
-                            <option value={15}>15 minutes</option>
-                            <option value={30}>30 minutes</option>
-                            <option value={60}>1 hour</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* Notification Settings Section */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all">
-                <div className="flex items-center mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40 rounded-xl mr-4">
-                        <Bell className="text-amber-600 dark:text-amber-400" size={22} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notification Preferences</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Manage how you receive alerts and updates</p>
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                        <div>
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Email notifications</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Receive reports and alerts via email</span>
-                        </div>
-                        <Toggle enabled={emailNotifications} onChange={() => { setEmailNotifications(!emailNotifications); markChanged(); }} />
-                    </div>
-
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                        <div>
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Push notifications</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Real-time alerts on your devices</span>
-                        </div>
-                        <Toggle enabled={pushNotifications} onChange={() => { setPushNotifications(!pushNotifications); markChanged(); }} />
-                    </div>
-
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
-                        <div>
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">SLA breach alerts</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Immediate notification when SLA is violated</span>
-                        </div>
-                        <Toggle enabled={slaAlerts} onChange={() => { setSlaAlerts(!slaAlerts); markChanged(); }} />
-                    </div>
-
-                    <div className="py-3">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-2">Email digest frequency</label>
-                        <div className="flex gap-3">
-                            {['realtime', 'daily', 'weekly'].map((freq) => (
-                                <button
-                                    key={freq}
-                                    onClick={() => { setDigestFrequency(freq); markChanged(); }}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${digestFrequency === freq
-                                        ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-700'
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                                        }`}
-                                >
-                                    {freq.charAt(0).toUpperCase() + freq.slice(1)}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* User Management Preview */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center mb-4">
-                    <div className="p-2.5 bg-white dark:bg-gray-700 rounded-xl mr-4 shadow-sm">
-                        <UserCog className="text-gray-500 dark:text-gray-400" size={22} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User & Role Management</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Configure access levels and permissions</p>
-                    </div>
-                </div>
-                <button className="bg-white dark:bg-gray-700 px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all">
-                    Manage Users & Roles →
-                </button>
-            </div>
+  const { settings, hasChanges, isSaving, saveError, updateSettings, saveSettings, resetSettings } = useSettings();
+  const { isDarkMode, toggleDarkMode } = useTheme();
+  return (
+    <div className="max-w-4xl space-y-8">
+      <div className="flex justify-between items-start flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">System Settings</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configure AI thresholds, mobile policies, and notifications. <span className="text-blue-500 font-medium">Changes persist across sessions.</span></p>
         </div>
-    );
+        <div className="flex items-center gap-3">
+          <button onClick={resetSettings} disabled={isSaving} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"><RotateCcw size={16} /> Reset to Defaults</button>
+          <button onClick={() => void saveSettings()} disabled={!hasChanges || isSaving}
+            className={`px-5 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm ${hasChanges && !isSaving ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'}`}>
+            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}{isSaving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+      {saveError && <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-800 dark:text-amber-300"><AlertCircle size={16} className="mt-0.5 flex-shrink-0" />{saveError}</div>}
+      {!hasChanges && !isSaving && !saveError && <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400"><CheckCircle size={16} /> All settings are saved and up to date.</div>}
+      <Section icon={<Zap size={18} />} title="AI Configuration" description="Control quality scoring and automated review thresholds">
+        <SettingRow label="Quality Score Threshold" description="Logs below this score are flagged for review (0–100)">
+          <div className="flex items-center gap-3"><NumberInput value={settings.qualityThreshold} onChange={v => updateSettings({ qualityThreshold: v })} min={0} max={100} label="Quality threshold" /><span className="text-xs font-mono text-gray-500 w-8">{settings.qualityThreshold}%</span></div>
+        </SettingRow>
+        <SettingRow label="Flag Yellow Alerts" description="Surface borderline scores for manual review"><Toggle enabled={settings.flagYellowAlerts} onChange={() => updateSettings({ flagYellowAlerts: !settings.flagYellowAlerts })} label="Flag yellow alerts" /></SettingRow>
+        <SettingRow label="Auto-Review Low Scores" description="Automatically reject logs that fail the quality threshold"><Toggle enabled={settings.autoReviewLowScores} onChange={() => updateSettings({ autoReviewLowScores: !settings.autoReviewLowScores })} label="Auto review low scores" /></SettingRow>
+      </Section>
+      <Section icon={<Smartphone size={18} />} title="Mobile App Policies" description="Control what the mobile cleaner app requires">
+        <SettingRow label="Require GPS Verification" description="Cleaner must be within range of checkpoint"><Toggle enabled={settings.requireGps} onChange={() => updateSettings({ requireGps: !settings.requireGps })} label="Require GPS" /></SettingRow>
+        <SettingRow label="Allow Offline Mode" description="Permit logs to be stored locally and synced later"><Toggle enabled={settings.allowOffline} onChange={() => updateSettings({ allowOffline: !settings.allowOffline })} label="Allow offline mode" /></SettingRow>
+        <SettingRow label="Max Offline Duration" description="Maximum hours a device can operate offline (1–72)"><NumberInput value={settings.maxOfflineHours} onChange={v => updateSettings({ maxOfflineHours: v })} min={1} max={72} unit="hours" label="Max offline hours" disabled={!settings.allowOffline} /></SettingRow>
+        <SettingRow label="Require Photo Evidence" description="Cleaners must capture a photo for each log submission"><Toggle enabled={settings.photoRequired} onChange={() => updateSettings({ photoRequired: !settings.photoRequired })} label="Photo required" /></SettingRow>
+      </Section>
+      <Section icon={<Clock size={18} />} title="SLA Configuration" description="Define service level agreement thresholds for alerts">
+        <SettingRow label="Max Cleaning Interval" description="Alert when a checkpoint has not been cleaned within this window (1–24 hours)"><NumberInput value={settings.maxCleaningIntervalHours} onChange={v => updateSettings({ maxCleaningIntervalHours: v })} min={1} max={24} unit="hours" label="Max cleaning interval" /></SettingRow>
+        <SettingRow label="Grace Period" description="Buffer time before SLA breach is escalated (0–120 minutes)"><NumberInput value={settings.gracePeriodMinutes} onChange={v => updateSettings({ gracePeriodMinutes: v })} min={0} max={120} unit="min" label="Grace period" /></SettingRow>
+        <SettingRow label="SLA Breach Alerts" description="Receive notifications when checkpoints breach SLA"><Toggle enabled={settings.slaAlerts} onChange={() => updateSettings({ slaAlerts: !settings.slaAlerts })} label="SLA alerts" /></SettingRow>
+      </Section>
+      <Section icon={<Bell size={18} />} title="Notifications" description="Configure how and when you receive alerts">
+        <SettingRow label="Email Notifications" description="Receive alerts via email"><Toggle enabled={settings.emailNotifications} onChange={() => updateSettings({ emailNotifications: !settings.emailNotifications })} label="Email notifications" /></SettingRow>
+        <SettingRow label="Push Notifications" description="Receive browser push notifications"><Toggle enabled={settings.pushNotifications} onChange={() => updateSettings({ pushNotifications: !settings.pushNotifications })} label="Push notifications" /></SettingRow>
+        <SettingRow label="Digest Frequency" description="How often to receive summary reports">
+          <select value={settings.digestFrequency} onChange={e => updateSettings({ digestFrequency: e.target.value as 'realtime' | 'hourly' | 'daily' | 'weekly' })} className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="realtime">Real-time</option><option value="hourly">Hourly</option><option value="daily">Daily</option><option value="weekly">Weekly</option>
+          </select>
+        </SettingRow>
+      </Section>
+      <Section icon={<Database size={18} />} title="Appearance" description="Customize the dashboard look and feel">
+        <SettingRow label="Dark Mode" description="Switch between light and dark theme"><Toggle enabled={isDarkMode} onChange={toggleDarkMode} label="Dark mode" /></SettingRow>
+      </Section>
+      <Section icon={<Shield size={18} />} title="Security and Compliance" description="Security settings are managed at the infrastructure level">
+        <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+          <p>Firestore security rules enforce row-level access control per building and role.</p>
+          <p>NFC payload hashes use HMAC-SHA256 with a server-managed secret.</p>
+          <p>GPS coordinates are masked in the UI; raw coordinates are stored encrypted.</p>
+          <p>All settings changes are logged with timestamp and user ID in the audit trail.</p>
+        </div>
+      </Section>
+    </div>
+  );
 };
-
 export default SettingsView;

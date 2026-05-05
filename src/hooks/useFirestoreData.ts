@@ -1,109 +1,178 @@
-import { useState, useEffect } from 'react';
-import { initializeApp, getApps, getApp } from 'firebase/app';
+/**
+ * useFirestoreData — Real-time Firestore data hook with mock fallback
+ *
+ * SOLID Principles:
+ * - Single Responsibility: data fetching only
+ * - Open/Closed: swap data source without changing consumers
+ * - Dependency Inversion: components depend on this hook, not Firebase directly
+ *
+ * Behaviour:
+ *   1. If Firebase env vars are present → subscribe to Firestore real-time listeners
+ *   2. If Firebase not configured → fall back to MOCK data (dev/demo mode)
+ *   3. On Firestore error → fall back to mock data and surface error message
+ *   4. Retry logic: exponential backoff up to 3 attempts on transient errors
+ */
+import { useState, useEffect, useRef } from 'react';
+import { CleaningLog, Checkpoint, AggregatedStats } from '../../types';
 import {
-  getFirestore,
-  collection,
-  query,
-  orderBy,
-  limit,
-  onSnapshot,
-  where,
-  doc
-} from 'firebase/firestore';
-// We use '@/' to point to the root folder safely
-import { CleaningLog, Checkpoint } from '../../types';
-// Firebase configuration from environment variables
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
-};
+  MOCK_CHECKPOINTS,
+  INITIAL_LOGS,
+  getMockCheckpointsForBuilding,
+  getMockLogsForBuilding,
+} from '../../constants';
 
-// Initialize Firebase (Singleton pattern to prevent "App already initialized" errors)
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
+interface FirestoreDataResult {
+  logs: CleaningLog[];
+  checkpoints: Checkpoint[];
+  stats: AggregatedStats | null;
+  loading: boolean;
+  error: string | null;
+  isUsingMockData: boolean;
+}
 
-export const useFirestoreData = (buildingId: string) => {
+const MAX_RETRIES = 3;
+const BASE_RETRY_DELAY_MS = 1000;
+
+function isFirebaseConfigured(): boolean {
+  return Boolean(
+    typeof import.meta !== 'undefined' &&
+    (import.meta as Record<string, unknown>).env &&
+    (import.meta.env as Record<string, string>).VITE_FIREBASE_PROJECT_ID &&
+    (import.meta.env as Record<string, string>).VITE_FIREBASE_API_KEY
+  );
+}
+
+export const useFirestoreData = (buildingId: string): FirestoreDataResult => {
   const [logs, setLogs] = useState<CleaningLog[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AggregatedStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isUsingMockData, setIsUsingMockData] = useState(false);
+  const retryCount = useRef(0);
+  const unsubscribers = useRef<Array<() => void>>([]);
 
-  // 1. Real-time Listener for Checkpoints
+  const loadMockData = (reason?: string) => {
+    setCheckpoints(getMockCheckpointsForBuilding(buildingId));
+    setLogs(getMockLogsForBuilding(buildingId));
+    setStats(null);
+    setIsUsingMockData(true);
+    if (reason) setError(reason);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    if (!buildingId) return;
+    // Clean up previous listeners
+    unsubscribers.current.forEach(fn => fn());
+    unsubscribers.current = [];
+    setLoading(true);
+    setError(null);
+    retryCount.current = 0;
 
-    const q = query(
-      collection(db, 'checkpoints'),
-      where('building_id', '==', buildingId)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cpData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Checkpoint));
-
-      setCheckpoints(cpData);
-    });
-
-    return () => unsubscribe();
-  }, [buildingId]);
-
-  // 2. Real-time Listener for Logs (Last 24 hours)
-  useEffect(() => {
-    if (!buildingId) {
-      setLoading(false);
+    if (!isFirebaseConfigured()) {
+      loadMockData('Firebase not configured — showing demo data.');
       return;
     }
 
-    const yesterday = new Date(Date.now() - 86400000).toISOString();
+    let cancelled = false;
 
-    const q = query(
-      collection(db, 'cleaning_logs'),
-      where('building_id', '==', buildingId),
-      where('created_at', '>=', yesterday),
-      orderBy('created_at', 'desc'),
-      limit(100)
-    );
+    const subscribe = async (attempt: number) => {
+      try {
+        const { getFirestore, collection, query, where, orderBy, limit, onSnapshot, doc } =
+          await import('firebase/firestore');
+        const { getApp } = await import('firebase/app');
+        const db = getFirestore(getApp());
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const logData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as CleaningLog));
+        // --- Checkpoints listener ---
+        const cpQuery = query(
+          collection(db, 'checkpoints'),
+          where('building_id', '==', buildingId),
+          where('is_active', '!=', false)
+        );
+        const unsubCp = onSnapshot(
+          cpQuery,
+          (snap) => {
+            if (cancelled) return;
+            setCheckpoints(snap.docs.map(d => ({ id: d.id, ...d.data() } as Checkpoint)));
+          },
+          (err) => {
+            if (cancelled) return;
+            handleError(err, attempt);
+          }
+        );
 
-      setLogs(logData);
-      setLoading(false);
-    }, (error) => {
-      console.error('Firestore logs query error:', error);
-      setLoading(false); // Stop loading even on error
-    });
+        // --- Logs listener (today's logs, paginated to 100) ---
+        const todayUTC = new Date().toISOString().slice(0, 10);
+        const logsQuery = query(
+          collection(db, 'cleaning_logs'),
+          where('building_id', '==', buildingId),
+          where('created_at', '>=', `${todayUTC}T00:00:00.000Z`),
+          orderBy('created_at', 'desc'),
+          limit(100)
+        );
+        const unsubLogs = onSnapshot(
+          logsQuery,
+          (snap) => {
+            if (cancelled) return;
+            setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() } as CleaningLog)));
+          },
+          (err) => {
+            if (cancelled) return;
+            handleError(err, attempt);
+          }
+        );
 
-    return () => unsubscribe();
-  }, [buildingId]);
+        // --- Daily stats listener ---
+        const todayDateString = new Date().toISOString().slice(0, 10);
+        const statsDocId = `${buildingId}_${todayDateString}`;
+        const unsubStats = onSnapshot(
+          doc(db, 'daily_stats', statsDocId),
+          (snapshot) => {
+            if (cancelled) return;
+            if (snapshot.exists()) {
+              setStats(snapshot.data() as AggregatedStats);
+            } else {
+              setStats(null);
+            }
+          },
+          (err) => {
+            if (cancelled) return;
+            console.warn('[useFirestoreData] Stats listener error (non-critical):', err);
+          }
+        );
 
-  // 3. Real-time Listener for Daily Stats (Aggregated backend pattern)
-  useEffect(() => {
-    if (!buildingId) return;
-
-    const todayDateString = new Date().toISOString().split('T')[0];
-    const statsDocId = `${buildingId}_${todayDateString}`;
-
-    const unsubscribe = onSnapshot(doc(db, 'stats_daily', statsDocId), (snapshot) => {
-      if (snapshot.exists()) {
-        setStats(snapshot.data());
-      } else {
-        setStats(null);
+        unsubscribers.current = [unsubCp, unsubLogs, unsubStats];
+        setIsUsingMockData(false);
+        setLoading(false);
+      } catch (err) {
+        if (!cancelled) handleError(err as Error, attempt);
       }
-    });
+    };
 
-    return () => unsubscribe();
+    const handleError = (err: Error | unknown, attempt: number) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[useFirestoreData] Error (attempt ${attempt}):`, msg);
+
+      if (attempt < MAX_RETRIES) {
+        const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
+        console.log(`[useFirestoreData] Retrying in ${delay}ms...`);
+        setTimeout(() => {
+          if (!cancelled) subscribe(attempt + 1);
+        }, delay);
+      } else {
+        loadMockData(`Live data unavailable (${msg}). Showing demo data.`);
+      }
+    };
+
+    subscribe(0);
+
+    return () => {
+      cancelled = true;
+      unsubscribers.current.forEach(fn => fn());
+      unsubscribers.current = [];
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildingId]);
 
-  return { logs, checkpoints, stats, loading };
+  return { logs, checkpoints, stats, loading, error, isUsingMockData };
 };
