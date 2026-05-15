@@ -45,7 +45,7 @@ type AppAction =
   | { type: 'RESET' };
 
 // ---- Reducer ----
-function appReducer(state: AppState, action: AppAction): AppState {
+export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'SET_TAB':
       return { ...state, activeTab: action.payload };
@@ -96,7 +96,7 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
-const initialState: AppState = {
+export const initialState: AppState = {
   activeTab: 'dashboard',
   selectedBuilding: ALL_BUILDINGS[0],
   selectedCheckpointId: null,
