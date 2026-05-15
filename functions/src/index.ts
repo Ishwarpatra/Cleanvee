@@ -52,6 +52,10 @@ const AlertService = {
       return false; // No alert needed
     }
 
+    // Fetch building to get manager_ids (Fix #66)
+    const buildingDoc = await db.collection("buildings").doc(logData.building_id).get();
+    const managerIds = buildingDoc.exists ? (buildingDoc.data()?.manager_ids || []) : [];
+
     await db.collection("alerts").add({
       related_log_id: logId,
       building_id: logData.building_id,
@@ -64,12 +68,14 @@ const AlertService = {
         score: overallScore,
         detected_hazards: hazards.map((h) => h.label),
       },
+      // Fix #66: specify who should receive this alert
+      notify_user_ids: managerIds,
       // Fix #91: record which Cloud Function created this alert
       source_function: "onLogCreated:AlertService",
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    console.log(`[AlertService] Created ${hasHazards ? 'SAFETY_HAZARD' : 'QUALITY_FAILURE'} alert for Log ${logId}. Score: ${overallScore}, Hazards: ${hazards.length}`);
+    console.log(`[AlertService] Created ${hasHazards ? 'SAFETY_HAZARD' : 'QUALITY_FAILURE'} alert for Log ${logId}. Score: ${overallScore}, Hazards: ${hazards.length}. Notifying ${managerIds.length} users.`);
     return true; // Alert was created
   },
 
@@ -352,6 +358,7 @@ export const onOccupantFeedback = onDocumentCreated("occupant_feedback/{feedback
 // Export scheduled and analytics functions
 export { checkSlaCompliance };
 export { streamToBigQuery, aggregateStats };
+export { onAlertCreated } from "./notifications";
 
 /**
  * Fix #93: Auto-provision a Firestore user doc when Firebase Auth creates a new user.

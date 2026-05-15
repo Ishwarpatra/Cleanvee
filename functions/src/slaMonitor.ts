@@ -60,6 +60,7 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
       lastCleanedAt: string;
       hoursOverdue: number;
       slaThresholdHours: number; // Fix #52: per-checkpoint SLA threshold
+      notifyUserIds: string[]; // Fix #66
     }> = [];
 
     // Check for existing alerts to avoid duplicates
@@ -103,12 +104,17 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
         ? data.sla_max_gap_hours
         : DEFAULT_MAX_GAP_HOURS;
 
+      // Fix #66: Fetch building to get manager_ids
+      const buildingDoc = await db.collection("buildings").doc(data.building_id).get();
+      const managerIds = buildingDoc.exists ? (buildingDoc.data()?.manager_ids || []) : [];
+
       alertsToCreate.push({
         checkpointId,
         buildingId: data.building_id,
         lastCleanedAt,
         hoursOverdue,
         slaThresholdHours,
+        notifyUserIds: managerIds, // Fix #66
       });
     }
 
@@ -134,6 +140,8 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
           hours_overdue: alert.hoursOverdue,
           sla_threshold_hours: alert.slaThresholdHours,
         },
+        notify_user_ids: alert.notifyUserIds, // Fix #66
+        source_function: "checkSlaCompliance", // Fix #91
         last_cleaned_at: alert.lastCleanedAt,
         created_at: admin.firestore.FieldValue.serverTimestamp(),
       });
