@@ -2,19 +2,24 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import sgMail from "@sendgrid/mail";
 
-// Initialize SendGrid with API key from environment
-// In Firebase Functions v2, we use process.env or Secret Manager.
-// For now, we fallback to a placeholder to prevent crashes if missing.
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || "SG.placeholder";
-sgMail.setApiKey(SENDGRID_API_KEY);
-const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || "alerts@cleanvee.com";
+import { defineSecret, defineString } from "firebase-functions/params";
+
+// Fix #106: Use Secret Manager for API keys, not env vars
+const sendgridApiKey = defineSecret("SENDGRID_API_KEY");
+const fromEmail = defineString("SENDGRID_FROM_EMAIL", { default: "alerts@cleanvee.com" });
 
 /**
  * Fix #8: Notification Delivery Service
  * Listens for new alerts in Firestore and dispatches emails to the
  * notify_user_ids attached to the alert.
  */
-export const onAlertCreated = onDocumentCreated("alerts/{alertId}", async (event) => {
+export const onAlertCreated = onDocumentCreated({
+  document: "alerts/{alertId}",
+  secrets: [sendgridApiKey]
+}, async (event) => {
+  // Initialize SendGrid inside the function using the injected secret
+  const apiKey = sendgridApiKey.value() || "SG.placeholder";
+  sgMail.setApiKey(apiKey);
   const snapshot = event.data;
   if (!snapshot) {
     console.log("[NotificationService] No data associated with the event.");
@@ -105,14 +110,14 @@ export const onAlertCreated = onDocumentCreated("alerts/{alertId}", async (event
     // Construct the SendGrid payload
     const msg = {
       to: emails,
-      from: FROM_EMAIL,
+      from: fromEmail.value(),
       subject: subject,
       text: textContent,
       html: htmlContent,
     };
 
     // If API key is placeholder, just mock it
-    if (SENDGRID_API_KEY === "SG.placeholder") {
+    if (apiKey === "SG.placeholder") {
       console.log(`[NotificationService] SENDGRID_API_KEY missing. Mocking email delivery to: ${emails.join(", ")}`);
       console.log(`[NotificationService] Email Subject: ${subject}`);
     } else {

@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// ============================================================
+// CLEANVEE — Cloud Storage Security Rules
+// Fix #144: Validate file types to prevent malware/exe uploads
+// ============================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ---- Helper functions ----
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isValidImage() {
+      // Must be an image type (jpeg, png, webp)
+      return request.resource.contentType.matches('image/.*')
+             // Prevent SVG uploads which can contain malicious JavaScript
+             && !request.resource.contentType.matches('image/svg.*')
+             // Max size 5MB
+             && request.resource.size < 5 * 1024 * 1024;
+    }
+    
+    match /proof_of_quality/{buildingId}/{checkpointId}/{fileName} {
+      // Anyone authenticated can read (managers need to see logs)
+      allow read: if isAuthenticated();
+      
+      // Only authenticated users can upload, and it MUST be a valid image < 5MB
+      allow create: if isAuthenticated() && isValidImage();
+      
+      // Photos are immutable (audit trail)
+      allow update, delete: if false;
+    }
+    
+    match /avatars/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create, update: if request.auth.uid == userId && isValidImage();
+      allow delete: if request.auth.uid == userId;
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
