@@ -11,6 +11,7 @@
  *   2. If Firebase not configured → fall back to MOCK data (dev/demo mode)
  *   3. On Firestore error → fall back to mock data and surface error message
  *   4. Retry logic: exponential backoff up to 3 attempts on transient errors
+ *   5. Debounce on buildingId changes to prevent listener churn and memory leaks
  */
 import { useState, useEffect, useRef } from 'react';
 import { CleaningLog, Checkpoint, AggregatedStats } from '../../types';
@@ -32,6 +33,7 @@ interface FirestoreDataResult {
 
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 1000;
+const DEBOUNCE_MS = 300;
 
 function isFirebaseConfigured(): boolean {
   return Boolean(
@@ -51,6 +53,7 @@ export const useFirestoreData = (buildingId: string): FirestoreDataResult => {
   const [isUsingMockData, setIsUsingMockData] = useState(false);
   const retryCount = useRef(0);
   const unsubscribers = useRef<Array<() => void>>([]);
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   const loadMockData = (reason?: string) => {
     setCheckpoints(getMockCheckpointsForBuilding(buildingId));
@@ -62,112 +65,128 @@ export const useFirestoreData = (buildingId: string): FirestoreDataResult => {
   };
 
   useEffect(() => {
-    // Clean up previous listeners
-    unsubscribers.current.forEach(fn => fn());
-    unsubscribers.current = [];
-    setLoading(true);
-    setError(null);
-    retryCount.current = 0;
-
-    if (!isFirebaseConfigured()) {
-      loadMockData('Firebase not configured — showing demo data.');
-      return;
+    // Clear previous debounce timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
     }
 
-    let cancelled = false;
+    // Debounce building changes to prevent rapid listener churn
+    debounceTimer.current = setTimeout(() => {
+      // Clean up previous listeners
+      unsubscribers.current.forEach(fn => fn());
+      unsubscribers.current = [];
+      setLoading(true);
+      setError(null);
+      retryCount.current = 0;
 
-    const subscribe = async (attempt: number) => {
-      try {
-        const { getFirestore, collection, query, where, orderBy, limit, onSnapshot, doc } =
-          await import('firebase/firestore');
-        const { getApp } = await import('firebase/app');
-        const db = getFirestore(getApp());
+      if (!isFirebaseConfigured()) {
+        loadMockData('Firebase not configured — showing demo data.');
+        return;
+      }
 
-        // --- Checkpoints listener ---
-        const cpQuery = query(
-          collection(db, 'checkpoints'),
-          where('building_id', '==', buildingId),
-          where('is_active', '!=', false)
-        );
-        const unsubCp = onSnapshot(
-          cpQuery,
-          (snap) => {
-            if (cancelled) return;
-            setCheckpoints(snap.docs.map(d => ({ id: d.id, ...d.data() } as Checkpoint)));
-          },
-          (err) => {
-            if (cancelled) return;
-            handleError(err, attempt);
-          }
-        );
+      let cancelled = false;
 
-        // --- Logs listener (today's logs, paginated to 100) ---
-        const todayUTC = new Date().toISOString().slice(0, 10);
-        const logsQuery = query(
-          collection(db, 'cleaning_logs'),
-          where('building_id', '==', buildingId),
-          where('created_at', '>=', `${todayUTC}T00:00:00.000Z`),
-          orderBy('created_at', 'desc'),
-          limit(100)
-        );
-        const unsubLogs = onSnapshot(
-          logsQuery,
-          (snap) => {
-            if (cancelled) return;
-            setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() } as CleaningLog)));
-          },
-          (err) => {
-            if (cancelled) return;
-            handleError(err, attempt);
-          }
-        );
+      const subscribe = async (attempt: number) => {
+        try {
+          const { getFirestore, collection, query, where, orderBy, limit, onSnapshot, doc } =
+            await import('firebase/firestore');
+          const { getApp } = await import('firebase/app');
+          const db = getFirestore(getApp());
 
-        // --- Daily stats listener ---
-        const todayDateString = new Date().toISOString().slice(0, 10);
-        const statsDocId = `${buildingId}_${todayDateString}`;
-        const unsubStats = onSnapshot(
-          doc(db, 'daily_stats', statsDocId),
-          (snapshot) => {
-            if (cancelled) return;
-            if (snapshot.exists()) {
-              setStats(snapshot.data() as AggregatedStats);
-            } else {
-              setStats(null);
+          // --- Checkpoints listener ---
+          const cpQuery = query(
+            collection(db, 'checkpoints'),
+            where('building_id', '==', buildingId),
+            where('is_active', '==', true)
+          );
+          const unsubCp = onSnapshot(
+            cpQuery,
+            (snap) => {
+              if (cancelled) return;
+              setCheckpoints(snap.docs.map(d => ({ id: d.id, ...d.data() } as Checkpoint)));
+            },
+            (err) => {
+              if (cancelled) return;
+              handleError(err, attempt);
             }
-          },
-          (err) => {
-            if (cancelled) return;
-            console.warn('[useFirestoreData] Stats listener error (non-critical):', err);
-          }
-        );
+          );
 
-        unsubscribers.current = [unsubCp, unsubLogs, unsubStats];
-        setIsUsingMockData(false);
-        setLoading(false);
-      } catch (err) {
-        if (!cancelled) handleError(err as Error, attempt);
-      }
-    };
+          // --- Logs listener (today's logs, paginated to 100) ---
+          const todayUTC = new Date().toISOString().slice(0, 10);
+          const logsQuery = query(
+            collection(db, 'cleaning_logs'),
+            where('building_id', '==', buildingId),
+            where('created_at', '>=', `${todayUTC}T00:00:00.000Z`),
+            orderBy('created_at', 'desc'),
+            limit(100)
+          );
+          const unsubLogs = onSnapshot(
+            logsQuery,
+            (snap) => {
+              if (cancelled) return;
+              setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() } as CleaningLog)));
+            },
+            (err) => {
+              if (cancelled) return;
+              handleError(err, attempt);
+            }
+          );
 
-    const handleError = (err: Error | unknown, attempt: number) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[useFirestoreData] Error (attempt ${attempt}):`, msg);
+          // --- Daily stats listener ---
+          const todayDateString = new Date().toISOString().slice(0, 10);
+          const statsDocId = `${buildingId}_${todayDateString}`;
+          const unsubStats = onSnapshot(
+            doc(db, 'daily_stats', statsDocId),
+            (snapshot) => {
+              if (cancelled) return;
+              if (snapshot.exists()) {
+                setStats(snapshot.data() as AggregatedStats);
+              } else {
+                setStats(null);
+              }
+            },
+            (err) => {
+              if (cancelled) return;
+              console.warn('[useFirestoreData] Stats listener error (non-critical):', err);
+            }
+          );
 
-      if (attempt < MAX_RETRIES) {
-        const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
-        console.log(`[useFirestoreData] Retrying in ${delay}ms...`);
-        setTimeout(() => {
-          if (!cancelled) subscribe(attempt + 1);
-        }, delay);
-      } else {
-        loadMockData(`Live data unavailable (${msg}). Showing demo data.`);
-      }
-    };
+          unsubscribers.current = [unsubCp, unsubLogs, unsubStats];
+          setIsUsingMockData(false);
+          setLoading(false);
+        } catch (err) {
+          if (!cancelled) handleError(err as Error, attempt);
+        }
+      };
 
-    subscribe(0);
+      const handleError = (err: Error | unknown, attempt: number) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[useFirestoreData] Error (attempt ${attempt}):`, msg);
+
+        if (attempt < MAX_RETRIES) {
+          const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
+          console.log(`[useFirestoreData] Retrying in ${delay}ms...`);
+          setTimeout(() => {
+            if (!cancelled) subscribe(attempt + 1);
+          }, delay);
+        } else {
+          loadMockData(`Live data unavailable (${msg}). Showing demo data.`);
+        }
+      };
+
+      subscribe(0);
+
+      return () => {
+        cancelled = true;
+        unsubscribers.current.forEach(fn => fn());
+        unsubscribers.current = [];
+      };
+    }, DEBOUNCE_MS);
 
     return () => {
-      cancelled = true;
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
       unsubscribers.current.forEach(fn => fn());
       unsubscribers.current = [];
     };

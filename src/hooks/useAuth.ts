@@ -50,15 +50,14 @@ function isFirebaseAuthConfigured(): boolean {
 
 export function useAuth(): AuthState {
   const [state, setState] = useState<AuthState>({
-    user: null,
-    loading: true,
+    user: isFirebaseAuthConfigured() ? null : DEMO_USER,
+    loading: isFirebaseAuthConfigured(),
     error: null,
   });
 
   useEffect(() => {
     if (!isFirebaseAuthConfigured()) {
-      // Demo mode: use mock manager user
-      setState({ user: DEMO_USER, loading: false, error: null });
+      // Demo mode: already initialized in useState
       return;
     }
 

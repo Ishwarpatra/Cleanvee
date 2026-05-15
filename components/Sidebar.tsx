@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Scan, LayoutDashboard, Building2, Users, Settings, BrainCircuit, LogOut, Loader2 } from 'lucide-react';
+import { Scan, LayoutDashboard, Building2, Users, Settings, BrainCircuit, LogOut, Loader2, Menu, X } from 'lucide-react';
 import { Role } from '../types';
 import { canManageBuildings, canManageTeam, canViewSettings } from '../src/hooks/useAuth';
 
@@ -19,6 +19,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
 }) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -27,6 +28,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     } finally {
       setIsLoggingOut(false);
     }
+  };
+
+  const handleTabClick = (tab: string) => {
+    setActiveTab(tab);
+    setIsMobileMenuOpen(false);
   };
 
   // Define navigation items with role-based visibility
@@ -44,23 +50,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     return userRole === item.requiredRole;
   });
 
-  return (
-    <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 hidden md:flex flex-col sticky top-0 h-screen z-20 transition-colors">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-        <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm">
-          <Scan size={24} />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white leading-none">Cleanvee</h1>
-          <p className="text-[10px] text-gray-400 font-medium tracking-wide">COMMAND CENTER</p>
-        </div>
-      </div>
-
+  const navContent = (
+    <>
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveTab(item.id)}
+            onClick={() => handleTabClick(item.id)}
             className={`flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
               activeTab === item.id
                 ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 shadow-sm ring-1 ring-blue-100 dark:ring-blue-800'
@@ -113,7 +109,63 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 hidden md:flex flex-col sticky top-0 h-screen z-20 transition-colors">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+          <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm">
+            <Scan size={24} />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white leading-none">Cleanvee</h1>
+            <p className="text-[10px] text-gray-400 font-medium tracking-wide">COMMAND CENTER</p>
+          </div>
+        </div>
+        {navContent}
+      </aside>
+
+      {/* Mobile Menu Button */}
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between z-40">
+        <div className="flex items-center gap-2">
+          <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm">
+            <Scan size={20} />
+          </div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white">Cleanvee</h1>
+        </div>
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          aria-label="Toggle menu"
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 bg-black/50 z-30" onClick={() => setIsMobileMenuOpen(false)} />
+      )}
+
+      {/* Mobile Sidebar */}
+      {isMobileMenuOpen && (
+        <aside className="md:hidden fixed left-0 top-16 bottom-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-40 flex flex-col overflow-y-auto">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+            <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm">
+              <Scan size={24} />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white leading-none">Cleanvee</h1>
+              <p className="text-[10px] text-gray-400 font-medium tracking-wide">COMMAND CENTER</p>
+            </div>
+          </div>
+          {navContent}
+        </aside>
+      )}
+    </>
   );
 };
 

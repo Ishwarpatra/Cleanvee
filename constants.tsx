@@ -1,4 +1,4 @@
-import { Building, Checkpoint, CleaningLog, LogStatus, Role, SyncStatus, User } from './types';
+import { Building, Checkpoint, CleaningLog, LogStatus, Role, SyncStatus, User, CheckpointStatus } from './types';
 
 // All available buildings
 export const ALL_BUILDINGS: Building[] = [
@@ -79,7 +79,7 @@ export const MOCK_CHECKPOINTS: Checkpoint[] = [
       model_version: 'lobby_v1.tflite',
       target_labels: ['spill', 'trash']
     },
-    current_status: 'clean'
+    current_status: CheckpointStatus.CLEAN
   },
   {
     id: 'cp-002',
@@ -92,7 +92,7 @@ export const MOCK_CHECKPOINTS: Checkpoint[] = [
       model_version: 'floor_v2.tflite',
       target_labels: ['spill', 'debris']
     },
-    current_status: 'attention'
+    current_status: CheckpointStatus.ATTENTION
   },
   {
     id: 'cp-003',
@@ -105,7 +105,7 @@ export const MOCK_CHECKPOINTS: Checkpoint[] = [
       model_version: 'restroom_v3.tflite',
       target_labels: ['overflowing_trash', 'wet_floor']
     },
-    current_status: 'dirty'
+    current_status: CheckpointStatus.DIRTY
   },
   {
     id: 'cp-004',
@@ -118,7 +118,7 @@ export const MOCK_CHECKPOINTS: Checkpoint[] = [
       model_version: 'kitchen_v1.tflite',
       target_labels: ['spill', 'food_waste']
     },
-    current_status: 'unknown'
+    current_status: CheckpointStatus.UNKNOWN
   }
 ];
 

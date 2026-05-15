@@ -1,6 +1,6 @@
 # Cleanvee — Facility Management Command Center
 
-**Cleanvee** is a comprehensive facility management platform combining **AI-powered quality verification**, **real-time SLA monitoring**, and **mobile-first operations** for professional cleaning services.
+**Cleanvee** is a comprehensive facility management platform combining **AI-powered quality verification**, **real-time SLA monitoring**, and **mobile-first operations** for professional cleaning services. This version incorporates significant improvements in authentication, state management, and data persistence, addressing critical feedback from the product team.
 
 [![CI](https://github.com/Ishwarpatra/Cleanvee/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Ishwarpatra/Cleanvee/actions/workflows/ci-cd.yml)
 
@@ -11,14 +11,19 @@
 Cleanvee transforms facility management with:
 
 - **AI-Powered Quality Verification**: Gemini 3.5 analyzes photos to verify cleaning standards
-- **Real-Time SLA Monitoring**: Automated alerts for SLA breaches with configurable thresholds
-- **Multi-Role Access Control**: Role-based UI with Cleaner, Manager, and Admin tiers
-- **Offline-First Mobile**: Flutter app with NFC scanning and offline sync
+- **Robust Real-Time Data Layer**: `useFirestoreData` hook with real-time listeners, exponential backoff, and debounced updates to prevent memory leaks.
+- **Enhanced State Management**: Centralized `AppContext` and `useReducer` for predictable state transitions, replacing fragmented `useState` calls.
+- **Secure Authentication System**: `useAuth` hook with Firebase Auth integration, demo mode fallback, and role-based access control. Auth flash race conditions have been mitigated.
+- **Persistent Settings**: `SettingsContext` now uses a dual-layer persistence strategy (localStorage + Firestore) with timestamp-based conflict resolution and a demo mode guard to prevent unnecessary Firestore writes.
+- **Dynamic Theme Management**: `ThemeContext` provides full dark mode functionality, saving preferences to localStorage and respecting system preferences, with future plans for Firestore sync.
+- **Role-Based Access Control**: Sidebar navigation and UI elements are dynamically filtered based on user roles (Cleaner, Manager, Admin).
+- **Improved Navigation**: Header building dropdown now syncs with global app state, and a mobile-responsive sidebar with a hamburger menu has been implemented.
+- **Offline-First Mobile**: Flutter app with NFC scanning and offline sync (planned for future development).
 - **Privacy-First Design**: PII filtering before AI processing, comprehensive audit logs
 - **Enterprise-Grade Infrastructure**: Firebase Firestore, Cloud Functions, Cloud Storage
-- **Demo Mode**: Works without Firebase — perfect for testing and development
+- **Demo Mode**: Works without Firebase — perfect for testing and development, with clear indicators and explicit role selection.
 
-**Works in demo mode without any Firebase configuration** — the app automatically falls back to mock data when environment variables are not set.
+**Works in demo mode without any Firebase configuration** — the app automatically falls back to mock data when environment variables are not set. Demo mode now includes an explicit role selector for easier testing.
 
 ---
 
@@ -58,7 +63,7 @@ npm install
 npm run dev
 
 # Visit http://localhost:5173
-# Demo credentials: cleaner@demo.com / demo123
+# Demo credentials: Use any email/password, select role from dropdown.
 ```
 
 ### Mobile App (10 minutes)
@@ -141,12 +146,13 @@ Firebase Auth ──► useAuth hook ──► Permission helpers ──► UI v
 
 | Feature | Description | Role |
 |---------|-------------|------|
-| **Real-Time Dashboard** | Live checkpoint status, SLA metrics, team activity | All |
+| **Real-Time Dashboard** | Live checkpoint status, SLA metrics, team activity with optimized data fetching | All |
 | **Building Management** | CRUD operations, SLA configuration, floor plans | Manager+ |
 | **Team Management** | Add/edit staff, role assignment, performance tracking | Manager+ |
 | **AI Reports** | Shift summaries, quality insights, anomaly detection | Manager+ |
-| **Settings** | System configuration, notification preferences | Manager+ |
+| **Settings** | System configuration, notification preferences with robust persistence and conflict resolution | Manager+ |
 | **Offline Support** | Works without internet, syncs when online | All |
+| **Responsive Layout** | Optimized for desktop and mobile devices with a new mobile navigation menu | All |
 
 ### Mobile App
 
@@ -354,7 +360,7 @@ cd functions && npm test
 
 ```bash
 # Type checking
-npm run type-check
+npm run typecheck
 
 # Linting
 npm run lint
@@ -371,7 +377,7 @@ npm run format
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build |
 | `npm test` | Run unit tests |
-| `npm run type-check` | TypeScript type checking |
+| `npm run typecheck` | TypeScript type checking |
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format code with Prettier |
 
@@ -421,7 +427,7 @@ firebase functions:log
 ### Authentication
 
 - **Firebase Auth** with email/password
-- **Role-Based Access Control** (RBAC)
+- **Role-Based Access Control** (RBAC) with improved demo mode role selection
 - **JWT tokens** for API requests
 - **Session management** with auto-logout
 
@@ -429,45 +435,16 @@ firebase functions:log
 
 - **PII Filtering** before AI processing
 - **Firestore Security Rules** for row-level access control
-- **Encryption at rest** (Firebase default)
-- **Audit logging** of all data access
-
-### Firestore Collections
-
-| Collection | Description |
-|------------|-------------|
-| `users` | User profiles with role and building assignments |
-| `buildings` | Building metadata and SLA configuration |
-| `checkpoints` | NFC checkpoint locations per building |
-| `cleaning_logs` | Immutable cleaning event records |
-| `alerts` | SLA breach and quality alerts |
-| `daily_stats` | Aggregated daily statistics |
-| `app_config` | Global application settings |
+- **Comprehensive Audit Logs** for all data access and modifications
 
 ---
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/your-feature`)
-3. Commit changes (`git commit -m 'feat: add your feature'`)
-4. Push to branch (`git push origin feat/your-feature`)
-5. Open a Pull Request
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more details.
 
 ---
 
-## 📝 License
+## 📄 License
 
-Private — All rights reserved.
-
----
-
-## 📞 Support
-
-- **Documentation**: [ARCHITECTURE.md](./ARCHITECTURE.md)
-- **Issues**: [GitHub Issues](https://github.com/Ishwarpatra/Cleanvee/issues)
-- **Email**: support@cleanvee.io
-
----
-
-**Made with ❤️ by the Cleanvee Team**
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

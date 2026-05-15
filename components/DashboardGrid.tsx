@@ -20,8 +20,8 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({ checkpoints = [], logs = 
 
   // Dynamic Stats Calculation
   const totalRooms = checkpoints.length;
-  const overdueRooms = checkpoints.filter(c => c.current_status === 'OVERDUE').length;
-  const cleanRooms = checkpoints.filter(c => c.current_status === 'CLEAN').length;
+  const overdueRooms = checkpoints.filter(c => c.current_status === 'overdue').length;
+  const cleanRooms = checkpoints.filter(c => c.current_status === 'clean').length;
 
   return (
     <div className="space-y-6">
@@ -143,13 +143,13 @@ const RoomCard: React.FC<{ checkpoint: Checkpoint; onSelectCheckpoint?: (id: str
   let statusColors = "bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700";
   let icon = <CheckCircle size={16} className="text-gray-400" />;
 
-  if (checkpoint.current_status === 'CLEAN') {
+  if (checkpoint.current_status === 'clean') {
     statusColors = "bg-green-50 border-green-200 hover:border-green-300";
     icon = <CheckCircle size={16} className="text-green-600" />;
-  } else if (checkpoint.current_status === 'OVERDUE') {
+  } else if (checkpoint.current_status === 'overdue') {
     statusColors = "bg-amber-50 border-amber-200 hover:border-amber-300";
     icon = <Clock size={16} className="text-amber-600" />;
-  } else if (checkpoint.current_status === 'DIRTY') {
+  } else if (checkpoint.current_status === 'dirty') {
     statusColors = "bg-red-50 border-red-200 hover:border-red-300";
     icon = <AlertOctagon size={16} className="text-red-600" />;
   }

@@ -3,25 +3,18 @@ import { Building } from '../types';
 import { MapPin, Search, ChevronDown, Building2 } from 'lucide-react';
 import NotificationDropdown from './ui/NotificationDropdown';
 import ProfileDropdown from './ui/ProfileDropdown';
+import { ALL_BUILDINGS } from '../constants';
 
 interface HeaderProps {
   building: Building;
-  buildings?: { id: string; name: string; city: string }[];
+  buildings?: Building[];
   onBuildingChange?: (buildingId: string) => void;
   onNavigateToSettings?: () => void;
 }
 
-// Available buildings for selection
-const AVAILABLE_BUILDINGS = [
-  { id: 'b1', name: 'Apex Tower HQ', city: 'San Francisco, CA' },
-  { id: 'b2', name: 'Westside Logistics', city: 'Oakland, CA' },
-  { id: 'b3', name: 'Downtown Medical Center', city: 'San Jose, CA' },
-  { id: 'b4', name: 'Tech Campus Alpha', city: 'Palo Alto, CA' },
-];
-
 const Header: React.FC<HeaderProps> = ({
   building,
-  buildings = AVAILABLE_BUILDINGS,
+  buildings = ALL_BUILDINGS,
   onBuildingChange,
   onNavigateToSettings
 }) => {
@@ -44,7 +37,6 @@ const Header: React.FC<HeaderProps> = ({
       onBuildingChange(buildingId);
     }
     setIsDropdownOpen(false);
-    console.log(`Switched to building: ${buildingId}`);
   };
 
   return (
@@ -84,19 +76,19 @@ const Header: React.FC<HeaderProps> = ({
                 <button
                   key={b.id}
                   onClick={() => handleSelectBuilding(b.id)}
-                  className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors text-left ${building.name === b.name ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-600' : ''
+                  className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors text-left ${building.id === b.id ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-600' : ''
                     }`}
                 >
-                  <div className={`p-2 rounded-lg ${building.name === b.name ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                  <div className={`p-2 rounded-lg ${building.id === b.id ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
                     <Building2 size={16} />
                   </div>
                   <div>
-                    <p className={`font-medium ${building.name === b.name ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>
+                    <p className={`font-medium ${building.id === b.id ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>
                       {b.name}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{b.city}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{b.address.city}, {b.address.state}</p>
                   </div>
-                  {building.name === b.name && (
+                  {building.id === b.id && (
                     <span className="ml-auto text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded font-medium">
                       Current
                     </span>
