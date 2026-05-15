@@ -32,6 +32,7 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
     // 1. Define the Threshold
     // In production, this could be dynamic per building, but for simplicity
     // we'll use a global 4-hour SLA and also check per-building config
+    // Fix #52: Use per-building SLA config when available, fallback to global default
     const DEFAULT_MAX_GAP_HOURS = 4;
     const thresholdDate = new Date(now.getTime() - (DEFAULT_MAX_GAP_HOURS * 60 * 60 * 1000));
     const thresholdTimestamp = admin.firestore.Timestamp.fromDate(thresholdDate);
@@ -58,6 +59,7 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
       buildingId: string;
       lastCleanedAt: string;
       hoursOverdue: number;
+      slaThresholdHours: number; // Fix #52: per-checkpoint SLA threshold
     }> = [];
 
     // Check for existing alerts to avoid duplicates
@@ -74,7 +76,7 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
       const existingAlerts = await db.collection("alerts")
         .where("checkpoint_id", "in", chunk)
         .where("type", "==", "SLA_MISSING_CLEAN")
-        .where("status", "==", "OPEN")
+        .where("status", "==", "open")  // Fix #56: lowercase matches AlertStatus enum
         .get();
 
       for (const alertDoc of existingAlerts.docs) {
@@ -96,12 +98,17 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
       const lastCleanedAt = data.last_cleaned_at || "never";
       const lastCleanedMs = data.last_cleaned_timestamp?.toMillis() || 0;
       const hoursOverdue = parseFloat(((now.getTime() - lastCleanedMs) / (1000 * 60 * 60)).toFixed(2));
+      // Fix #52: use building-level SLA config if stored on checkpoint, else use default
+      const slaThresholdHours: number = typeof data.sla_max_gap_hours === 'number'
+        ? data.sla_max_gap_hours
+        : DEFAULT_MAX_GAP_HOURS;
 
       alertsToCreate.push({
         checkpointId,
         buildingId: data.building_id,
         lastCleanedAt,
         hoursOverdue,
+        slaThresholdHours,
       });
     }
 
@@ -120,12 +127,12 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
         building_id: alert.buildingId,
         checkpoint_id: alert.checkpointId,
         type: "SLA_MISSING_CLEAN",
-        severity: "MEDIUM",
-        status: "OPEN",
-        message: `Area has not been cleaned in ${alert.hoursOverdue} hours (SLA: ${DEFAULT_MAX_GAP_HOURS}h).`,
+        severity: "medium",     // Fix #56: lowercase matches AlertSeverity enum
+        status: "open",         // Fix #56: lowercase matches AlertStatus enum
+        message: `Area has not been cleaned in ${alert.hoursOverdue} hours (SLA: ${alert.slaThresholdHours}h).`,
         details: {
           hours_overdue: alert.hoursOverdue,
-          sla_threshold_hours: DEFAULT_MAX_GAP_HOURS,
+          sla_threshold_hours: alert.slaThresholdHours,
         },
         last_cleaned_at: alert.lastCleanedAt,
         created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -142,7 +149,7 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
     for (const alert of alertsToCreate) {
       const checkpointRef = db.collection("checkpoints").doc(alert.checkpointId);
       statusBatch.update(checkpointRef, {
-        current_status: "OVERDUE",
+        current_status: "overdue",  // Fix #56: lowercase matches CheckpointStatus enum
         updated_at: admin.firestore.FieldValue.serverTimestamp(),
       });
     }

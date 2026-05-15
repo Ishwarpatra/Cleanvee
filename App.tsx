@@ -27,11 +27,17 @@ import LoginScreen from './components/LoginScreen';
 import { X, Camera, Check, MapPin, Scan, LayoutGrid, Map as MapIcon, Loader2, AlertCircle } from 'lucide-react';
 
 function App() {
-  const { state, setActiveTab, setBuilding, setCheckpoint, setLog, setViewMode, setShowReportModal, setReportLoading, setError } = useAppContext();
+  const { state, setActiveTab, setBuilding, setCheckpoint, setLog, setViewMode, setShowReportModal, setReportLoading, setError, resetState } = useAppContext();
   const { activeTab, selectedBuilding, selectedCheckpointId, selectedLog, viewMode, showReportModal, reportLoading, error: appError } = state;
   const { logs, checkpoints, stats, loading, error: dataError, isUsingMockData } = useFirestoreData(selectedBuilding.id);
   const { user, loading: authLoading, logout } = useAuth();
   const [generatedReport, setGeneratedReport] = useState<ShiftReport | null>(null);
+
+  // Fix #7: Reset all app state on logout to prevent data leaks between user sessions
+  const handleLogout = async () => {
+    resetState();
+    if (logout) await logout();
+  };
 
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
@@ -100,7 +106,7 @@ function App() {
           setActiveTab={setActiveTab}
           onGenerateReport={() => void handleGenerateReport()}
           userRole={user?.role}
-          onLogout={logout}
+          onLogout={() => void handleLogout()}
         />
         <main className="flex-1 flex flex-col min-w-0">
           <Header

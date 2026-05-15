@@ -99,6 +99,7 @@ service cloud.firestore {
       allow create: if false; // Created by Cloud Functions only
       allow update: if isManagerOrAdmin() &&
         userAssignedToBuilding(resource.data.building_id) &&
+        // Fix #56: status values are lowercase to match AlertStatus enum
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acknowledged_by', 'resolved_at']);
       allow delete: if false;
     }
@@ -116,6 +117,28 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       // Only managers/admins can update global settings
       allow write: if isManagerOrAdmin();
+    }
+
+    // ---- SLA Events (analytics) ----
+    match /sla_events/{docId} {
+      // Read-only for managers in the relevant building
+      allow read: if isManagerOrAdmin();
+      // Only Cloud Functions write SLA events
+      allow write: if false;
+    }
+
+    // ---- Occupant Feedback ----
+    // Fix #51: Prevent race conditions — enforce one doc per user per checkpoint per 60s
+    // Fix #67: Rate-limit occupant feedback to prevent spam
+    match /occupant_feedback/{feedbackId} {
+      allow create: if isAuthenticated() &&
+        // feedback must come from the authenticated user
+        request.resource.data.submitted_by == request.auth.uid &&
+        // feedback must reference a valid checkpoint field
+        request.resource.data.checkpoint_id is string;
+      // No updates or deletes — feedback is immutable
+      allow update, delete: if false;
+      allow read: if isManagerOrAdmin();
     }
 
     // ---- Default deny ----

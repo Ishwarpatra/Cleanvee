@@ -40,7 +40,9 @@ type AppAction =
   | { type: 'SET_REPORT_MODAL'; payload: boolean }
   | { type: 'SET_REPORT_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'CLEAR_ERROR' };
+  | { type: 'CLEAR_ERROR' }
+  // Fix #7: Reset all state on logout to prevent data leaks between sessions
+  | { type: 'RESET' };
 
 // ---- Reducer ----
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -68,6 +70,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, error: action.payload };
     case 'CLEAR_ERROR':
       return { ...state, error: null };
+    // Fix #7: Full reset clears selected building session, logs, checkpoints
+    case 'RESET':
+      return { ...initialState };
     default:
       return state;
   }
@@ -85,6 +90,8 @@ interface AppContextValue {
   setReportLoading: (loading: boolean) => void;
   setError: (msg: string | null) => void;
   clearError: () => void;
+  // Fix #7: Resets all app state on logout
+  resetState: () => void;
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -115,6 +122,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setReportLoading = useCallback((loading: boolean) => dispatch({ type: 'SET_REPORT_LOADING', payload: loading }), []);
   const setError = useCallback((msg: string | null) => dispatch({ type: 'SET_ERROR', payload: msg }), []);
   const clearError = useCallback(() => dispatch({ type: 'CLEAR_ERROR' }), []);
+  // Fix #7: Clear all user-session state to prevent data leaks on logout
+  const resetState = useCallback(() => dispatch({ type: 'RESET' }), []);
 
   return (
     <AppContext.Provider
@@ -129,6 +138,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setReportLoading,
         setError,
         clearError,
+        resetState,
       }}
     >
       {children}
