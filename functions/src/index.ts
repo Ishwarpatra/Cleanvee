@@ -55,9 +55,10 @@ const AlertService = {
       related_log_id: logId,
       building_id: logData.building_id,
       checkpoint_id: logData.checkpoint_id,
-      severity: "HIGH",
-      status: "OPEN",
-      type: hasHazards ? "SAFETY_HAZARD" : "QUALITY_FAILURE",
+      // Fix #57 partial: severity based on hazard vs low score
+      severity: hasHazards ? "high" : "medium",   // Fix #56: lowercase
+      status: "open",                              // Fix #56: lowercase
+      type: hasHazards ? "HAZARD_DETECTED" : "LOW_QUALITY_SCORE",
       details: {
         score: overallScore,
         detected_hazards: hazards.map((h) => h.label),
@@ -78,7 +79,7 @@ const AlertService = {
     const openAlerts = await db.collection("alerts")
       .where("checkpoint_id", "==", checkpointId)
       .where("type", "==", "SLA_MISSING_CLEAN")
-      .where("status", "==", "OPEN")
+      .where("status", "==", "open")  // Fix #56: lowercase
       .get();
 
     if (openAlerts.empty) return;
@@ -86,7 +87,7 @@ const AlertService = {
     const batch = db.batch();
     for (const alertDoc of openAlerts.docs) {
       batch.update(alertDoc.ref, {
-        status: "RESOLVED",
+        status: "resolved",                                   // Fix #56: lowercase
         resolved_at: admin.firestore.FieldValue.serverTimestamp(),
         resolved_by_log_id: resolvedByLogId,
       });
@@ -117,7 +118,7 @@ const FacilityStateService = {
     await db.collection("checkpoints").doc(checkpointId).update({
       last_cleaned_at: cleanedAt,
       last_cleaned_timestamp: admin.firestore.Timestamp.fromDate(cleanedDate),
-      current_status: "CLEAN",
+      current_status: "clean",  // Fix #56: lowercase matches CheckpointStatus enum
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -261,12 +262,14 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
               building_id: logData.building_id,
               checkpoint_id: logData.checkpoint_id,
               type: "SUPERVISOR_AUDIT_REQUEST",
-              severity: "MEDIUM",
-              status: "OPEN",
+              severity: "medium",   // Fix #56: lowercase
+              status: "open",       // Fix #56: lowercase
               message: `Cleaner streak reached 10. Manual spot check requested for ${logData.checkpoint_id}.`,
               details: {
                 cleaner_id: logData.cleaner_id,
-                streak: newStreak
+                streak: newStreak,
+                // Fix #61: include the log that triggered the audit for evidence
+                trigger_log_id: logId,
               },
               created_at: admin.firestore.FieldValue.serverTimestamp(),
             });
@@ -283,9 +286,11 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
     } else {
       console.log(`[Trigger] Log ${logId} not verified (status: ${logData.verification_result?.status}). Skipping state update.`);
 
-      // Reset streak if log failed or was flagged
-      if (logData.verification_result?.status === "rejected") {
+      // Fix #60: Reset streak on any non-verified outcome (rejected, flagged, appealed)
+      const nonVerifiedStatuses = ["rejected", "flagged_for_review", "appealed"];
+      if (logData.verification_result?.status && nonVerifiedStatuses.includes(logData.verification_result.status)) {
         await db.collection("users").doc(logData.cleaner_id).set({ verified_streak: 0 }, { merge: true });
+        console.log(`[Trigger] Reset streak for cleaner ${logData.cleaner_id} (status: ${logData.verification_result.status})`);
       }
     }
 
