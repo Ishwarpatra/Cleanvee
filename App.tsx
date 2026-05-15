@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { CleaningLog, ShiftReport } from './types';
-import { MOCK_USERS } from './constants';
+import { MOCK_USERS, ALL_BUILDINGS } from './constants';
 import FloorPlan from './components/FloorPlan';
 import LogFeed from './components/LogFeed';
 import StatsOverview from './components/StatsOverview';
@@ -105,12 +105,7 @@ function App() {
         <main className="flex-1 flex flex-col min-w-0">
           <Header
             building={selectedBuilding}
-            buildings={[
-              { id: 'bldg-001', name: 'Apex Tower HQ', city: 'San Francisco, CA' },
-              { id: 'bldg-002', name: 'Westside Logistics', city: 'Oakland, CA' },
-              { id: 'bldg-003', name: 'Downtown Medical Center', city: 'San Jose, CA' },
-              { id: 'bldg-004', name: 'Tech Campus Alpha', city: 'Palo Alto, CA' },
-            ]}
+            buildings={ALL_BUILDINGS}
             onBuildingChange={setBuilding}
             onNavigateToSettings={() => setActiveTab('settings')}
           />
@@ -212,10 +207,14 @@ function App() {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 tracking-wide">Verification Status</h4>
-                  <div className={`p-3 rounded-xl border text-sm font-medium ${selectedLog.verification_result.status === 'verified' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' : selectedLog.verification_result.status === 'rejected' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'}`}>
-                    {selectedLog.verification_result.status.replace('_', ' ').toUpperCase()}
-                    {selectedLog.verification_result.rejection_reason && <p className="text-xs font-normal mt-1 opacity-80">Reason: {selectedLog.verification_result.rejection_reason}</p>}
+                  <div className={`p-3 rounded-xl border text-sm font-medium ${selectedLog.verification_result.status === 'verified' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' : selectedLog.verification_result.status === 'flagged_for_review' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'}`}>
+                    {selectedLog.verification_result.status === 'verified' && '✓ Verified'}
+                    {selectedLog.verification_result.status === 'flagged_for_review' && '⚠ Flagged for Review'}
+                    {selectedLog.verification_result.status === 'rejected' && '✗ Rejected'}
                   </div>
+                  {selectedLog.verification_result.rejection_reason && (
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">Reason: {selectedLog.verification_result.rejection_reason}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -223,7 +222,14 @@ function App() {
         </div>
       )}
 
-      {showReportModal && <ReportModal loading={reportLoading} report={generatedReport} onClose={() => setShowReportModal(false)} />}
+      {showReportModal && (
+        <ReportModal
+          isOpen={showReportModal}
+          isLoading={reportLoading}
+          report={generatedReport}
+          onClose={() => setShowReportModal(false)}
+        />
+      )}
     </div>
   );
 }

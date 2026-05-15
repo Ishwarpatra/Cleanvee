@@ -4,6 +4,7 @@
  * Features:
  * - Email/password login
  * - Demo mode fallback (no Firebase required)
+ * - Explicit role selector in demo mode
  * - Role-based redirect after login
  * - Error handling and loading states
  */
@@ -21,6 +22,7 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, isLoading = false, error }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<Role>(Role.CLEANER);
   const [localError, setLocalError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -37,25 +39,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, isLoading = f
       );
 
       if (!firebaseConfigured) {
-        // Demo mode: accept any email/password
+        // Demo mode: accept any email/password with explicit role selection
         if (!email || !password) {
           setLocalError('Email and password are required');
           setIsSubmitting(false);
           return;
         }
 
-        // Simulate role assignment based on email
-        let role: Role = Role.CLEANER;
-        if (email.includes('manager') || email.includes('admin')) {
-          role = Role.MANAGER;
-        }
-        if (email.includes('admin')) {
-          role = Role.ADMIN;
-        }
-
-        // Simulate async delay
+        // Use explicitly selected role
         await new Promise(resolve => setTimeout(resolve, 500));
-        onLoginSuccess('demo-uid-' + Date.now(), email, role);
+        onLoginSuccess('demo-uid-' + Date.now(), email, selectedRole);
         return;
       }
 
@@ -88,6 +81,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, isLoading = f
   };
 
   const displayError = error || localError;
+  const isDemo = !import.meta.env.VITE_FIREBASE_PROJECT_ID;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
@@ -104,13 +98,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, isLoading = f
         {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-6">
           {/* Demo Mode Notice */}
-          {!import.meta.env.VITE_FIREBASE_PROJECT_ID && (
+          {isDemo && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
               <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-amber-800">
                 <p className="font-semibold mb-1">Demo Mode</p>
                 <p>Firebase not configured. Use any email to login.</p>
-                <p className="text-xs mt-1 opacity-75">Tip: Include "manager" or "admin" in email for different roles</p>
               </div>
             </div>
           )}
@@ -133,7 +126,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, isLoading = f
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="manager@cleanvee.com"
+                  placeholder="user@cleanvee.com"
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   disabled={isSubmitting || isLoading}
                   required
@@ -158,6 +151,23 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, isLoading = f
               </div>
             </div>
 
+            {/* Role Selector (Demo Mode Only) */}
+            {isDemo && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Role</label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as Role)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  disabled={isSubmitting || isLoading}
+                >
+                  <option value={Role.CLEANER}>Cleaner - View dashboard only</option>
+                  <option value={Role.MANAGER}>Manager - Full access</option>
+                  <option value={Role.ADMIN}>Admin - System administration</option>
+                </select>
+              </div>
+            )}
+
             {/* Submit Button */}
             <button
               type="submit"
@@ -179,41 +189,46 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, isLoading = f
           </form>
 
           {/* Demo Credentials */}
-          <div className="pt-4 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center mb-3">Demo Credentials</p>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('cleaner@demo.com');
-                  setPassword('demo123');
-                }}
-                className="p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 text-gray-700 transition-colors"
-              >
-                Cleaner
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('manager@demo.com');
-                  setPassword('demo123');
-                }}
-                className="p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 text-gray-700 transition-colors"
-              >
-                Manager
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('admin@demo.com');
-                  setPassword('demo123');
-                }}
-                className="p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 text-gray-700 transition-colors"
-              >
-                Admin
-              </button>
+          {isDemo && (
+            <div className="pt-4 border-t border-gray-200">
+              <p className="text-xs text-gray-500 text-center mb-3">Quick Demo Login</p>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('cleaner@demo.com');
+                    setPassword('demo123');
+                    setSelectedRole(Role.CLEANER);
+                  }}
+                  className="p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 text-gray-700 transition-colors"
+                >
+                  Cleaner
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('manager@demo.com');
+                    setPassword('demo123');
+                    setSelectedRole(Role.MANAGER);
+                  }}
+                  className="p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 text-gray-700 transition-colors"
+                >
+                  Manager
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('admin@demo.com');
+                    setPassword('demo123');
+                    setSelectedRole(Role.ADMIN);
+                  }}
+                  className="p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 text-gray-700 transition-colors"
+                >
+                  Admin
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer */}

@@ -10,6 +10,8 @@
  *   1. Reads from localStorage on mount (instant, offline-first)
  *   2. Attempts Firestore write on save (if Firebase configured)
  *   3. Falls back to localStorage-only if Firestore unavailable
+ *   4. Implements conflict resolution: uses timestamp-based last-write-wins
+ *   5. Skips Firestore writes in demo mode to avoid unnecessary quota usage
  */
 import React, {
   createContext,
@@ -22,6 +24,7 @@ import React, {
 import { AppSettings, isValidAppSettings } from '../../types';
 
 const SETTINGS_STORAGE_KEY = 'cleanvee-app-settings';
+const SETTINGS_TIMESTAMP_KEY = 'cleanvee-app-settings-timestamp';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   qualityThreshold: 70,
@@ -51,6 +54,17 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
+function isFirebaseConfigured(): boolean {
+  try {
+    return Boolean(
+      (import.meta.env as Record<string, string>).VITE_FIREBASE_PROJECT_ID &&
+      (import.meta.env as Record<string, string>).VITE_FIREBASE_API_KEY
+    );
+  } catch {
+    return false;
+  }
+}
+
 function loadFromStorage(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -66,8 +80,17 @@ function loadFromStorage(): AppSettings {
 function saveToStorage(settings: AppSettings): void {
   try {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(SETTINGS_TIMESTAMP_KEY, new Date().toISOString());
   } catch (e) {
     console.warn('[SettingsContext] localStorage write failed:', e);
+  }
+}
+
+function getStorageTimestamp(): string {
+  try {
+    return localStorage.getItem(SETTINGS_TIMESTAMP_KEY) || '1970-01-01T00:00:00Z';
+  } catch {
+    return '1970-01-01T00:00:00Z';
   }
 }
 
@@ -105,17 +128,42 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
 
     try {
-      // Attempt Firestore persistence (only if Firebase is configured)
-      const firestoreConfigured = Boolean(
-        import.meta.env.VITE_FIREBASE_PROJECT_ID &&
-        import.meta.env.VITE_FIREBASE_API_KEY
-      );
+      const firebaseConfigured = isFirebaseConfigured();
 
-      if (firestoreConfigured) {
-        const { getFirestore, doc, setDoc } = await import('firebase/firestore');
+      // Skip Firestore write in demo mode to avoid unnecessary quota usage
+      if (firebaseConfigured) {
+        const { getFirestore, doc, setDoc, getDoc } = await import('firebase/firestore');
         const { getApp } = await import('firebase/app');
         const db = getFirestore(getApp());
-        await setDoc(doc(db, 'app_config', 'settings'), toSave, { merge: true });
+
+        // Fetch current Firestore settings to check for conflicts
+        const docRef = doc(db, 'app_config', 'settings');
+        const docSnap = await getDoc(docRef);
+
+        let firestoreSettings: AppSettings | null = null;
+        if (docSnap.exists()) {
+          firestoreSettings = docSnap.data() as AppSettings;
+        }
+
+        // Conflict resolution: compare timestamps
+        const localTimestamp = new Date(toSave.updatedAt || new Date()).getTime();
+        const remoteTimestamp = firestoreSettings?.updatedAt 
+          ? new Date(firestoreSettings.updatedAt).getTime() 
+          : 0;
+
+        // If remote is newer, merge with preference for remote values
+        if (remoteTimestamp > localTimestamp && firestoreSettings) {
+          console.warn('[SettingsContext] Remote settings are newer, merging...');
+          const merged = { ...toSave, ...firestoreSettings, updatedAt: new Date().toISOString() };
+          setSettings(merged);
+          setSavedSettings(merged);
+          await setDoc(docRef, merged, { merge: true });
+          setSaveError('Settings merged with remote version (remote had newer changes).');
+          return;
+        }
+
+        // Local is newer or equal, write to Firestore
+        await setDoc(docRef, toSave, { merge: true });
       }
 
       // Always persist to localStorage as fallback
@@ -135,7 +183,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const resetSettings = useCallback(() => {
     setSettings(DEFAULT_SETTINGS);
+    setSavedSettings(DEFAULT_SETTINGS);
     setSaveError(null);
+    saveToStorage(DEFAULT_SETTINGS);
   }, []);
 
   return (
