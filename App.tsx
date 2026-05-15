@@ -22,12 +22,15 @@ import DemoModeBanner from './components/ui/DemoModeBanner';
 import { generateShiftReport } from './services/geminiService';
 import { useFirestoreData } from './src/hooks/useFirestoreData';
 import { useAppContext } from './src/contexts/AppContext';
+import { useAuth } from './src/hooks/useAuth';
+import LoginScreen from './components/LoginScreen';
 import { X, Camera, Check, MapPin, Scan, LayoutGrid, Map as MapIcon, Loader2, AlertCircle } from 'lucide-react';
 
 function App() {
   const { state, setActiveTab, setBuilding, setCheckpoint, setLog, setViewMode, setShowReportModal, setReportLoading, setError } = useAppContext();
   const { activeTab, selectedBuilding, selectedCheckpointId, selectedLog, viewMode, showReportModal, reportLoading, error: appError } = state;
   const { logs, checkpoints, stats, loading, error: dataError, isUsingMockData } = useFirestoreData(selectedBuilding.id);
+  const { user, loading: authLoading, logout } = useAuth();
   const [generatedReport, setGeneratedReport] = useState<ShiftReport | null>(null);
 
   useEffect(() => {
@@ -57,7 +60,19 @@ function App() {
     if (first) setLog(first);
   };
 
-  if (loading) {
+  // Show login screen if user is not authenticated
+  if (!user && !authLoading) {
+    return (
+      <LoginScreen
+        onLoginSuccess={(uid, email, role) => {
+          // Auth state will be updated by useAuth hook
+          console.log('User logged in:', { uid, email, role });
+        }}
+      />
+    );
+  }
+
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
@@ -80,7 +95,13 @@ function App() {
         </div>
       )}
       <div className="flex flex-1 min-h-0">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onGenerateReport={() => void handleGenerateReport()} />
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onGenerateReport={() => void handleGenerateReport()}
+          userRole={user?.role}
+          onLogout={logout}
+        />
         <main className="flex-1 flex flex-col min-w-0">
           <Header
             building={selectedBuilding}

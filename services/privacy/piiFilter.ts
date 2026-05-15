@@ -12,7 +12,7 @@ import {
     PRIVACY_CONTEXTS,
     type PrivacyContext
 } from './dataPolicy';
-import type { CleaningLog, Checkpoint, Building, User } from '../../types';
+import type { CleaningLog, Checkpoint, Building, User, Alert } from '../../types';
 
 /**
  * Recursively picks only specified paths from an object
@@ -121,7 +121,9 @@ export function sanitizeBuildingForAI(building: Building): Partial<Building> {
 /**
  * Sanitize an alert object for AI processing
  */
-export function sanitizeAlertForAI(alert: Record<string, any>): Record<string, any> {
+import type { CleaningLog, Checkpoint, Building, User, Alert } from '../../types';
+
+export function sanitizeAlertForAI(alert: Alert): Partial<Alert> {
     const sanitized = pickPaths(alert, AI_SAFE_FIELDS.alert);
 
     // Redact any text fields

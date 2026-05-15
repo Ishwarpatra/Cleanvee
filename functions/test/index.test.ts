@@ -3,6 +3,7 @@
  */
 
 import * as admin from 'firebase-admin';
+import { CleaningLog, DetectedObject } from '../../types';
 
 // --- Mock Setup (BEFORE imports) ---
 
@@ -77,7 +78,7 @@ beforeEach(() => {
 
 describe('AlertService', () => {
     // Import the AlertService logic inline to test it directly
-    const createSafetyAlert = async (logId: string, logData: any) => {
+    const createSafetyAlert = async (logId: string, logData: CleaningLog) => {
         const db = admin.firestore();
         const overallScore = logData.proof_of_quality?.overall_score ?? 0;
         const hazards = logData.proof_of_quality?.detected_objects ?? [];
@@ -98,7 +99,7 @@ describe('AlertService', () => {
             type: hasHazards ? 'SAFETY_HAZARD' : 'QUALITY_FAILURE',
             details: {
                 score: overallScore,
-                detected_hazards: hazards.map((h: any) => h.label),
+                detected_hazards: hazards.map((h: DetectedObject) => h.label),
             },
         });
 

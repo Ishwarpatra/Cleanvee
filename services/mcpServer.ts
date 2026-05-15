@@ -29,7 +29,7 @@ import {
     generatePrivacyAuditLog
 } from './privacy';
 
-import type { CleaningLog, Checkpoint } from '../types';
+import type { CleaningLog, Checkpoint, Alert } from '../types';
 
 // ============================================
 // MCP Tool Definitions
@@ -167,8 +167,9 @@ export async function mcpCreateTicket(
  * MCP Tool: get_alert_summary
  * Returns sanitized alert data for AI processing (PII filtered)
  */
-export function mcpGetAlertSummary(alert: Record<string, any>): {
-    sanitizedAlert: Record<string, any>;
+export function mcpGetAlertSummary(alert: Alert): {
+    sanitizedAlert: Partial<Alert>;
+
     privacyAudit: ReturnType<typeof generatePrivacyAuditLog>;
 } {
     const sanitizedAlert = sanitizeAlertForAI(alert);
@@ -298,7 +299,7 @@ export function getMCPToolDefinitions(): MCPToolDefinition[] {
 export function logMCPInvocation(
     toolName: string,
     params: Record<string, any>,
-    result: any
+    result: TicketResponse | { success: boolean } | undefined
 ): void {
     console.log(`[MCP Audit] Tool: ${toolName}`, {
         timestamp: new Date().toISOString(),
