@@ -15,7 +15,8 @@ const fromEmail = defineString("SENDGRID_FROM_EMAIL", { default: "alerts@cleanve
  */
 export const onAlertCreated = onDocumentCreated({
   document: "alerts/{alertId}",
-  secrets: [sendgridApiKey]
+  secrets: [sendgridApiKey],
+  retry: true
 }, async (event) => {
   // Initialize SendGrid inside the function using the injected secret
   const apiKey = sendgridApiKey.value() || "SG.placeholder";
@@ -89,20 +90,51 @@ export const onAlertCreated = onDocumentCreated({
     textContent += `Log into the Cleanvee dashboard to resolve this issue.`;
 
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-        <h2 style="color: ${alertData.severity === 'high' ? '#dc2626' : '#d97706'};">
-          Cleanvee Alert: ${alertData.type.replace(/_/g, " ")}
-        </h2>
-        <p><strong>Severity:</strong> <span style="text-transform: uppercase;">${alertData.severity}</span></p>
-        <p><strong>Building ID:</strong> ${alertData.building_id}</p>
-        <p><strong>Checkpoint ID:</strong> ${alertData.checkpoint_id}</p>
+      <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
         
-        ${alertData.message ? `<div style="background: #f9fafb; padding: 15px; border-left: 4px solid #3b82f6; margin: 20px 0;"><strong>Message:</strong> ${alertData.message}</div>` : ''}
+        <!-- Header -->
+        <div style="background-color: ${alertData.severity === 'high' || alertData.severity === 'critical' ? '#ef4444' : '#f59e0b'}; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px;">Cleanvee Alert</h1>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 32px 24px;">
+          <h2 style="color: #111827; margin-top: 0; margin-bottom: 16px; font-size: 20px;">
+            ${alertData.type.replace(/_/g, " ")} Detected
+          </h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+            <tr>
+              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280; width: 120px;"><strong>Severity</strong></td>
+              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #111827; text-transform: uppercase; font-weight: 600;">${alertData.severity}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280;"><strong>Building ID</strong></td>
+              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #111827;">${alertData.building_id}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280;"><strong>Checkpoint ID</strong></td>
+              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #111827;">${alertData.checkpoint_id}</td>
+            </tr>
+          </table>
+          
+          ${alertData.message ? `<div style="background: #f8fafc; padding: 16px; border-left: 4px solid #3b82f6; border-radius: 4px; margin-bottom: 24px; color: #334155;"><strong>Note:</strong> ${alertData.message}</div>` : ''}
+          
+          ${alertData.details ? `<div style="margin-bottom: 24px;"><h3 style="font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Technical Details</h3><pre style="background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5;">${JSON.stringify(alertData.details, null, 2)}</pre></div>` : ''}
+          
+          <div style="margin-top: 32px; text-align: center;">
+            <a href="https://cleanvee.web.app/dashboard" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">Review in Dashboard</a>
+          </div>
+        </div>
         
-        ${alertData.details ? `<p><strong>Details:</strong></p><pre style="background: #f1f5f9; padding: 10px; border-radius: 4px; overflow-x: auto;">${JSON.stringify(alertData.details, null, 2)}</pre>` : ''}
-        
-        <div style="margin-top: 30px; text-align: center;">
-          <a href="https://cleanvee.web.app/dashboard" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">View in Dashboard</a>
+        <!-- Footer / Fix #103: Unsubscribe link for CAN-SPAM compliance -->
+        <div style="background-color: #f9fafb; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #9ca3af; font-size: 12px; margin: 0 0 8px 0;">This is an automated operational alert generated by the Cleanvee Platform.</p>
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            To stop receiving these alerts, you can 
+            <a href="https://cleanvee.web.app/preferences" style="color: #6b7280; text-decoration: underline;">update your notification preferences</a> or 
+            <a href="https://cleanvee.web.app/unsubscribe?user=%%%USER_ID%%%" style="color: #6b7280; text-decoration: underline;">unsubscribe instantly</a>.
+          </p>
         </div>
       </div>
     `;
@@ -135,8 +167,8 @@ export const onAlertCreated = onDocumentCreated({
 
   } catch (error) {
     console.error(`[NotificationService] Error sending email for Alert ${alertId}:`, error);
-    // We don't throw the error, as we don't want the trigger to retry endlessly 
-    // unless configured for retry on failure.
+    // We throw the error so that the Cloud Function retries execution (Fix #105)
+    throw error;
   }
 });
 
@@ -146,7 +178,8 @@ export const onAlertCreated = onDocumentCreated({
  */
 export const onAlertUpdated = onDocumentUpdated({
   document: "alerts/{alertId}",
-  secrets: [sendgridApiKey]
+  secrets: [sendgridApiKey],
+  retry: true
 }, async (event) => {
   const snapshot = event.data;
   if (!snapshot) return;
@@ -186,12 +219,36 @@ export const onAlertUpdated = onDocumentUpdated({
       const textContent = `The following alert has been marked as RESOLVED.\n\nType: ${afterData.type}\nBuilding ID: ${afterData.building_id}\nCheckpoint ID: ${afterData.checkpoint_id}\nResolved At: ${afterData.resolved_at || new Date().toISOString()}`;
       
       const htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #16a34a;">✅ Alert Resolved</h2>
-          <p>The following alert has been successfully resolved and closed.</p>
-          <p><strong>Type:</strong> ${afterData.type.replace(/_/g, " ")}</p>
-          <p><strong>Building ID:</strong> ${afterData.building_id}</p>
-          <p><strong>Checkpoint ID:</strong> ${afterData.checkpoint_id}</p>
+        <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          <div style="background-color: #10b981; padding: 24px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px;">✓ Alert Resolved</h1>
+          </div>
+          
+          <div style="padding: 32px 24px;">
+            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-top: 0;">Good news! The following alert has been successfully resolved and closed.</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 24px; background-color: #f8fafc; border-radius: 6px; overflow: hidden;">
+              <tr>
+                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #64748b; width: 120px;"><strong>Type</strong></td>
+                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 500;">${afterData.type.replace(/_/g, " ")}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Building ID</strong></td>
+                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${afterData.building_id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 16px; color: #64748b;"><strong>Checkpoint ID</strong></td>
+                <td style="padding: 12px 16px; color: #0f172a;">${afterData.checkpoint_id}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background-color: #f9fafb; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+            <p style="color: #9ca3af; font-size: 12px; margin: 0 0 8px 0;">This is an automated operational alert generated by the Cleanvee Platform.</p>
+            <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+              <a href="https://cleanvee.web.app/unsubscribe?user=%%%USER_ID%%%" style="color: #6b7280; text-decoration: underline;">Unsubscribe from these alerts</a>
+            </p>
+          </div>
         </div>
       `;
 
@@ -211,6 +268,8 @@ export const onAlertUpdated = onDocumentUpdated({
       }
     } catch (error) {
       console.error(`[NotificationService] Error sending resolution email for Alert ${alertId}:`, error);
+      // We throw the error so that the Cloud Function retries execution (Fix #105)
+      throw error;
     }
   }
 });
