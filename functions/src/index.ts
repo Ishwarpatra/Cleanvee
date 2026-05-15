@@ -56,26 +56,46 @@ const AlertService = {
     const buildingDoc = await db.collection("buildings").doc(logData.building_id).get();
     const managerIds = buildingDoc.exists ? (buildingDoc.data()?.manager_ids || []) : [];
 
+    const alertType = hasHazards ? "HAZARD_DETECTED" : "LOW_QUALITY_SCORE";
+
+    // Fix #119: Check for existing open alert for this checkpoint to prevent spam
+    const existingAlerts = await db.collection("alerts")
+      .where("checkpoint_id", "==", logData.checkpoint_id)
+      .where("type", "==", alertType)
+      .where("status", "in", ["open", "acknowledged"])
+      .limit(1)
+      .get();
+
+    if (!existingAlerts.empty) {
+      const existingAlert = existingAlerts.docs[0];
+      await existingAlert.ref.update({
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        "details.duplicate_count": admin.firestore.FieldValue.increment(1),
+        "details.latest_log_id": logId,
+        "details.latest_score": overallScore,
+      });
+      console.log(`[AlertService] Updated existing ${alertType} alert for Checkpoint ${logData.checkpoint_id}.`);
+      return true;
+    }
+
     await db.collection("alerts").add({
-      related_log_id: logId,
+      related_log_id: logId, // Primary log that triggered it
       building_id: logData.building_id,
       checkpoint_id: logData.checkpoint_id,
-      // Fix #57 partial: severity based on hazard vs low score
-      severity: hasHazards ? "high" : "medium",   // Fix #56: lowercase
-      status: "open",                              // Fix #56: lowercase
-      type: hasHazards ? "HAZARD_DETECTED" : "LOW_QUALITY_SCORE",
+      severity: hasHazards ? "high" : "medium",
+      status: "open",
+      type: alertType,
       details: {
         score: overallScore,
         detected_hazards: hazards.map((h) => h.label),
+        duplicate_count: 0
       },
-      // Fix #66: specify who should receive this alert
       notify_user_ids: managerIds,
-      // Fix #91: record which Cloud Function created this alert
       source_function: "onLogCreated:AlertService",
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    console.log(`[AlertService] Created ${hasHazards ? 'SAFETY_HAZARD' : 'QUALITY_FAILURE'} alert for Log ${logId}. Score: ${overallScore}, Hazards: ${hazards.length}. Notifying ${managerIds.length} users.`);
+    console.log(`[AlertService] Created ${alertType} alert for Log ${logId}. Score: ${overallScore}, Hazards: ${hazards.length}. Notifying ${managerIds.length} users.`);
     return true; // Alert was created
   },
 
