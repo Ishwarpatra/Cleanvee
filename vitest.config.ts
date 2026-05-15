@@ -12,5 +12,6 @@ export default defineConfig({
       reporter: ['text', 'lcov', 'html'],
       exclude: ['node_modules/', 'dist/', '**/*.d.ts', 'src/test/'],
     },
+    exclude: ['node_modules', 'dist', '.idea', '.git', '.cache', 'functions/**'],
   },
 });

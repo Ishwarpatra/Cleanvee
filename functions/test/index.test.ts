@@ -113,11 +113,11 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 55, // Below threshold
-                    detected_objects: [],
+                    detected_objects: [] as any[],
                 },
             };
 
-            const result = await createSafetyAlert('log_001', logData);
+            const result = await createSafetyAlert('log_001', logData as unknown as CleaningLog);
 
             expect(result).toBe(true);
             expect(mockAdd).toHaveBeenCalledWith(
@@ -138,11 +138,11 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 85, // Above threshold
-                    detected_objects: [],
+                    detected_objects: [] as any[],
                 },
             };
 
-            const result = await createSafetyAlert('log_002', logData);
+            const result = await createSafetyAlert('log_002', logData as unknown as CleaningLog);
 
             expect(result).toBe(false);
             expect(mockAdd).not.toHaveBeenCalled();
@@ -154,11 +154,11 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 69, // Just below threshold
-                    detected_objects: [],
+                    detected_objects: [] as any[],
                 },
             };
 
-            const result = await createSafetyAlert('log_003', logData);
+            const result = await createSafetyAlert('log_003', logData as unknown as CleaningLog);
 
             expect(result).toBe(true);
             expect(mockAdd).toHaveBeenCalled();
@@ -170,11 +170,11 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 70, // Exactly at threshold
-                    detected_objects: [],
+                    detected_objects: [] as any[],
                 },
             };
 
-            const result = await createSafetyAlert('log_004', logData);
+            const result = await createSafetyAlert('log_004', logData as unknown as CleaningLog);
 
             expect(result).toBe(false);
             expect(mockAdd).not.toHaveBeenCalled();
@@ -195,7 +195,7 @@ describe('AlertService', () => {
                 },
             };
 
-            const result = await createSafetyAlert('log_005', logData);
+            const result = await createSafetyAlert('log_005', logData as unknown as CleaningLog);
 
             expect(result).toBe(true);
             expect(mockAdd).toHaveBeenCalledWith(
@@ -220,7 +220,7 @@ describe('AlertService', () => {
                 },
             };
 
-            const result = await createSafetyAlert('log_006', logData);
+            const result = await createSafetyAlert('log_006', logData as unknown as CleaningLog);
 
             expect(result).toBe(true);
             expect(mockAdd).toHaveBeenCalledWith(
@@ -240,7 +240,7 @@ describe('AlertService', () => {
             };
 
             // Should create alert because score defaults to 0
-            const result = await createSafetyAlert('log_007', logData);
+            const result = await createSafetyAlert('log_007', logData as unknown as CleaningLog);
 
             expect(result).toBe(true);
             expect(mockAdd).toHaveBeenCalledWith(
@@ -259,11 +259,11 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 50,
-                    detected_objects: null, // Explicitly null
+                    detected_objects: [] as any, // Explicitly empty array for mock
                 },
             };
 
-            const result = await createSafetyAlert('log_008', logData);
+            const result = await createSafetyAlert('log_008', logData as unknown as CleaningLog);
 
             expect(result).toBe(true);
             // Should not throw
