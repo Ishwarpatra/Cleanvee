@@ -55,7 +55,7 @@ exports.checkSlaCompliance = (0, scheduler_1.onSchedule)("every 15 minutes", asy
             const existingAlerts = await db.collection("alerts")
                 .where("checkpoint_id", "in", chunk)
                 .where("type", "==", "SLA_MISSING_CLEAN")
-                .where("status", "==", "OPEN")
+                .where("status", "==", "open")
                 .get();
             for (const alertDoc of existingAlerts.docs) {
                 existingAlertsMap.set(alertDoc.data().checkpoint_id, true);
@@ -71,11 +71,18 @@ exports.checkSlaCompliance = (0, scheduler_1.onSchedule)("every 15 minutes", asy
             const lastCleanedAt = data.last_cleaned_at || "never";
             const lastCleanedMs = data.last_cleaned_timestamp?.toMillis() || 0;
             const hoursOverdue = parseFloat(((now.getTime() - lastCleanedMs) / (1000 * 60 * 60)).toFixed(2));
+            const slaThresholdHours = typeof data.sla_max_gap_hours === 'number'
+                ? data.sla_max_gap_hours
+                : DEFAULT_MAX_GAP_HOURS;
+            const buildingDoc = await db.collection("buildings").doc(data.building_id).get();
+            const managerIds = buildingDoc.exists ? (buildingDoc.data()?.manager_ids || []) : [];
             alertsToCreate.push({
                 checkpointId,
                 buildingId: data.building_id,
                 lastCleanedAt,
                 hoursOverdue,
+                slaThresholdHours,
+                notifyUserIds: managerIds,
             });
         }
         if (alertsToCreate.length === 0) {
@@ -90,13 +97,15 @@ exports.checkSlaCompliance = (0, scheduler_1.onSchedule)("every 15 minutes", asy
                 building_id: alert.buildingId,
                 checkpoint_id: alert.checkpointId,
                 type: "SLA_MISSING_CLEAN",
-                severity: "MEDIUM",
-                status: "OPEN",
-                message: `Area has not been cleaned in ${alert.hoursOverdue} hours (SLA: ${DEFAULT_MAX_GAP_HOURS}h).`,
+                severity: "medium",
+                status: "open",
+                message: `Area has not been cleaned in ${alert.hoursOverdue} hours (SLA: ${alert.slaThresholdHours}h).`,
                 details: {
                     hours_overdue: alert.hoursOverdue,
-                    sla_threshold_hours: DEFAULT_MAX_GAP_HOURS,
+                    sla_threshold_hours: alert.slaThresholdHours,
                 },
+                notify_user_ids: alert.notifyUserIds,
+                source_function: "checkSlaCompliance",
                 last_cleaned_at: alert.lastCleanedAt,
                 created_at: admin.firestore.FieldValue.serverTimestamp(),
             });
@@ -108,7 +117,7 @@ exports.checkSlaCompliance = (0, scheduler_1.onSchedule)("every 15 minutes", asy
         for (const alert of alertsToCreate) {
             const checkpointRef = db.collection("checkpoints").doc(alert.checkpointId);
             statusBatch.update(checkpointRef, {
-                current_status: "OVERDUE",
+                current_status: "overdue",
                 updated_at: admin.firestore.FieldValue.serverTimestamp(),
             });
         }

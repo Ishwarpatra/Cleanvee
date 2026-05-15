@@ -23,8 +23,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.aggregateStats = exports.streamToBigQuery = exports.checkSlaCompliance = exports.onOccupantFeedback = exports.onLogCreated = void 0;
+exports.onAuthUserCreated = exports.onAlertCreated = exports.aggregateStats = exports.streamToBigQuery = exports.checkSlaCompliance = exports.onOccupantFeedback = exports.onLogCreated = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
+const identity_1 = require("firebase-functions/v2/identity");
 const admin = __importStar(require("firebase-admin"));
 const slaMonitor_1 = require("./slaMonitor");
 Object.defineProperty(exports, "checkSlaCompliance", { enumerable: true, get: function () { return slaMonitor_1.checkSlaCompliance; } });
@@ -44,34 +45,38 @@ const AlertService = {
         if (!hasHazards && !isLowScore) {
             return false;
         }
+        const buildingDoc = await db.collection("buildings").doc(logData.building_id).get();
+        const managerIds = buildingDoc.exists ? (buildingDoc.data()?.manager_ids || []) : [];
         await db.collection("alerts").add({
             related_log_id: logId,
             building_id: logData.building_id,
             checkpoint_id: logData.checkpoint_id,
-            severity: "HIGH",
-            status: "OPEN",
-            type: hasHazards ? "SAFETY_HAZARD" : "QUALITY_FAILURE",
+            severity: hasHazards ? "high" : "medium",
+            status: "open",
+            type: hasHazards ? "HAZARD_DETECTED" : "LOW_QUALITY_SCORE",
             details: {
                 score: overallScore,
                 detected_hazards: hazards.map((h) => h.label),
             },
+            notify_user_ids: managerIds,
+            source_function: "onLogCreated:AlertService",
             created_at: admin.firestore.FieldValue.serverTimestamp(),
         });
-        console.log(`[AlertService] Created ${hasHazards ? 'SAFETY_HAZARD' : 'QUALITY_FAILURE'} alert for Log ${logId}. Score: ${overallScore}, Hazards: ${hazards.length}`);
+        console.log(`[AlertService] Created ${hasHazards ? 'SAFETY_HAZARD' : 'QUALITY_FAILURE'} alert for Log ${logId}. Score: ${overallScore}, Hazards: ${hazards.length}. Notifying ${managerIds.length} users.`);
         return true;
     },
     async resolveMissingCleanAlerts(checkpointId, resolvedByLogId) {
         const openAlerts = await db.collection("alerts")
             .where("checkpoint_id", "==", checkpointId)
             .where("type", "==", "SLA_MISSING_CLEAN")
-            .where("status", "==", "OPEN")
+            .where("status", "==", "open")
             .get();
         if (openAlerts.empty)
             return;
         const batch = db.batch();
         for (const alertDoc of openAlerts.docs) {
             batch.update(alertDoc.ref, {
-                status: "RESOLVED",
+                status: "resolved",
                 resolved_at: admin.firestore.FieldValue.serverTimestamp(),
                 resolved_by_log_id: resolvedByLogId,
             });
@@ -86,14 +91,15 @@ const FacilityStateService = {
         await db.collection("checkpoints").doc(checkpointId).update({
             last_cleaned_at: cleanedAt,
             last_cleaned_timestamp: admin.firestore.Timestamp.fromDate(cleanedDate),
-            current_status: "CLEAN",
+            current_status: "clean",
+            became_clean_at: cleanedAt,
             updated_at: admin.firestore.FieldValue.serverTimestamp(),
         });
         console.log(`[FacilityStateService] Updated Checkpoint ${checkpointId} - last_cleaned_at: ${cleanedAt}`);
     },
 };
 const SlaEventService = {
-    async recordBreachRecovery(logData, logId, previousCleaningAt, gapDurationMs, allowedDurationMs) {
+    async recordBreachRecovery(logData, logId, previousCleaningAt, gapDurationMs, allowedDurationMs, resolvedAlertId) {
         const gapHours = (gapDurationMs / (1000 * 60 * 60)).toFixed(2);
         const allowedHours = (allowedDurationMs / (1000 * 60 * 60)).toFixed(2);
         await db.collection("sla_events").add({
@@ -101,6 +107,7 @@ const SlaEventService = {
             building_id: logData.building_id,
             checkpoint_id: logData.checkpoint_id,
             recovered_by_log_id: logId,
+            resolved_alert_id: resolvedAlertId ?? null,
             details: {
                 gap_duration_ms: gapDurationMs,
                 gap_duration_hours: parseFloat(gapHours),
@@ -146,7 +153,14 @@ exports.onLogCreated = (0, firestore_1.onDocumentCreated)("cleaning_logs/{logId}
                         const lastTimestamp = new Date(previousCleanedAt).getTime();
                         const timeSinceLastCleaning = currentTimestamp - lastTimestamp;
                         if (timeSinceLastCleaning > maxGapMs) {
-                            await SlaEventService.recordBreachRecovery(logData, logId, previousCleanedAt, timeSinceLastCleaning, maxGapMs);
+                            const breachAlertSnap = await db.collection("alerts")
+                                .where("checkpoint_id", "==", logData.checkpoint_id)
+                                .where("type", "==", "SLA_MISSING_CLEAN")
+                                .where("status", "in", ["open", "acknowledged"])
+                                .limit(1)
+                                .get();
+                            const resolvedAlertId = breachAlertSnap.empty ? undefined : breachAlertSnap.docs[0].id;
+                            await SlaEventService.recordBreachRecovery(logData, logId, previousCleanedAt, timeSinceLastCleaning, maxGapMs, resolvedAlertId);
                         }
                     }
                 }
@@ -164,12 +178,13 @@ exports.onLogCreated = (0, firestore_1.onDocumentCreated)("cleaning_logs/{logId}
                             building_id: logData.building_id,
                             checkpoint_id: logData.checkpoint_id,
                             type: "SUPERVISOR_AUDIT_REQUEST",
-                            severity: "MEDIUM",
-                            status: "OPEN",
+                            severity: "medium",
+                            status: "open",
                             message: `Cleaner streak reached 10. Manual spot check requested for ${logData.checkpoint_id}.`,
                             details: {
                                 cleaner_id: logData.cleaner_id,
-                                streak: newStreak
+                                streak: newStreak,
+                                trigger_log_id: logId,
                             },
                             created_at: admin.firestore.FieldValue.serverTimestamp(),
                         });
@@ -186,8 +201,10 @@ exports.onLogCreated = (0, firestore_1.onDocumentCreated)("cleaning_logs/{logId}
         }
         else {
             console.log(`[Trigger] Log ${logId} not verified (status: ${logData.verification_result?.status}). Skipping state update.`);
-            if (logData.verification_result?.status === "rejected") {
+            const nonVerifiedStatuses = ["rejected", "flagged_for_review", "appealed"];
+            if (logData.verification_result?.status && nonVerifiedStatuses.includes(logData.verification_result.status)) {
                 await db.collection("users").doc(logData.cleaner_id).set({ verified_streak: 0 }, { merge: true });
+                console.log(`[Trigger] Reset streak for cleaner ${logData.cleaner_id} (status: ${logData.verification_result.status})`);
             }
         }
     }
@@ -217,5 +234,23 @@ exports.onOccupantFeedback = (0, firestore_1.onDocumentCreated)("occupant_feedba
             console.log(`[Feedback] Overrode Log ${lastLog.id} status due to occupant feedback ${event.params.feedbackId}`);
         }
     }
+});
+var notifications_1 = require("./notifications");
+Object.defineProperty(exports, "onAlertCreated", { enumerable: true, get: function () { return notifications_1.onAlertCreated; } });
+exports.onAuthUserCreated = (0, identity_1.beforeUserCreated)(async (event) => {
+    const user = event.data;
+    if (!user)
+        return;
+    await db.collection("users").doc(user.uid).set({
+        uid: user.uid,
+        email: user.email ?? "",
+        full_name: user.displayName ?? user.email ?? "New User",
+        role: "cleaner",
+        assigned_building_ids: [],
+        is_active: true,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        created_by: "system:onAuthUserCreated",
+    });
+    console.log(`[onAuthUserCreated] Provisioned Firestore doc for new user: ${user.uid} (${user.email})`);
 });
 //# sourceMappingURL=index.js.map
