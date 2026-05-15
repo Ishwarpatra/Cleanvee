@@ -340,9 +340,9 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
     } else {
       console.log(`[Trigger] Log ${logId} not verified (status: ${logData.verification_result?.status}). Skipping state update.`);
 
-      // Fix #60, #113: Reset streak on any non-verified outcome (rejected, flagged, appealed) per building
-      const nonVerifiedStatuses = ["rejected", "flagged_for_review", "appealed"];
-      if (logData.verification_result?.status && nonVerifiedStatuses.includes(logData.verification_result.status)) {
+      // Fix #60, #113, #148: Reset streak on any non-verified outcome per building, using enums
+      const nonVerifiedStatuses = [LogStatus.REJECTED, LogStatus.FLAGGED, LogStatus.APPEALED];
+      if (logData.verification_result?.status && nonVerifiedStatuses.includes(logData.verification_result.status as LogStatus)) {
         const streakId = `${logData.building_id}_${logData.cleaner_id}`;
         await db.collection("streaks").doc(streakId).set({
           cleaner_id: logData.cleaner_id,
