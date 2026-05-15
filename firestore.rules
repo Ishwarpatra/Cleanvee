@@ -82,7 +82,16 @@ service cloud.firestore {
       // Cleaners can only create logs for their assigned buildings
       allow create: if isAuthenticated() &&
         userAssignedToBuilding(request.resource.data.building_id) &&
-        request.resource.data.cleaner_id == request.auth.uid;
+        request.resource.data.cleaner_id == request.auth.uid &&
+        // Fix #72: validate cleaner_id references a real user doc
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        // Fix #73: validate checkpoint_id references a real checkpoint
+        exists(/databases/$(database)/documents/checkpoints/$(request.resource.data.checkpoint_id)) &&
+        // Fix #74: validate log's building_id matches the checkpoint's building_id
+        request.resource.data.building_id ==
+          get(/databases/$(database)/documents/checkpoints/$(request.resource.data.checkpoint_id)).data.building_id &&
+        // Fix #75: block backdated timestamps (must be within 5 minutes of server time)
+        request.resource.data.created_at >= (request.time - duration.value(5, 'm')).toRfc3339String();
       // Logs are IMMUTABLE after creation — only managers can update verification_result
       allow update: if isManagerOrAdmin() &&
         userAssignedToBuilding(resource.data.building_id) &&
