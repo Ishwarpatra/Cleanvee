@@ -17,6 +17,25 @@ export enum LogStatus {
   APPEAL_RESOLVED = 'appeal_resolved'
 }
 
+// Fix #81: standardised rejection reasons for consistent analytics
+export enum RejectionReason {
+  QUALITY_TOO_LOW = 'QUALITY_TOO_LOW',
+  HAZARD_DETECTED = 'HAZARD_DETECTED',
+  INCOMPLETE_PHOTO = 'INCOMPLETE_PHOTO',
+  INVALID_LOCATION = 'INVALID_LOCATION',
+  DUPLICATE_LOG = 'DUPLICATE_LOG',
+  OTHER = 'OTHER'
+}
+
+// Fix #82: standardised appeal reasons for aggregation
+export enum AppealReason {
+  PHOTO_QUALITY_ISSUE = 'PHOTO_QUALITY_ISSUE',
+  GPS_INACCURACY = 'GPS_INACCURACY',
+  AI_MISCLASSIFICATION = 'AI_MISCLASSIFICATION',
+  EQUIPMENT_FAILURE = 'EQUIPMENT_FAILURE',
+  OTHER = 'OTHER'
+}
+
 export enum SyncStatus {
   SYNCED = 'synced',
   PENDING = 'pending_upload',
@@ -54,6 +73,9 @@ export interface User {
   is_active?: boolean;
   created_at?: string;
   last_login?: string;
+  // Fix #88: audit trail for compliance
+  created_by?: string;   // uid of admin who created this user
+  updated_at?: string;
 }
 
 // ---- Building ----
@@ -76,7 +98,13 @@ export interface Building {
   floor_plan_svg_path?: string;
   manager_ids?: string[];
   is_active?: boolean;
-  created_at?: string;
+  // Fix #87: required field — building must always have a creation timestamp
+  created_at: string;
+  // Fix #90: audit trail
+  created_by?: string;
+  updated_at?: string;
+  // Fix #65: bump this when SLA config changes to invalidate cached stats
+  config_version?: number;
 }
 
 // ---- Checkpoint ----
@@ -93,9 +121,19 @@ export interface Checkpoint {
     quality_threshold?: number;
   };
   current_status?: CheckpointStatus;
-  last_cleaned_timestamp?: string;
+  // Fix #62: use only Timestamp string; last_cleaned_timestamp (Firestore Timestamp) lives server-side only
+  last_cleaned_at?: string;  // ISO string — kept for UI display; set by Cloud Function
   is_active?: boolean;
   assigned_cleaner_ids?: string[];
+  // Fix #63: status transition timestamps for audit trail
+  became_clean_at?: string;
+  became_overdue_at?: string;
+  // Fix #89: audit trail
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  // Fix #52: optional override of global SLA threshold (hours)
+  sla_max_gap_hours?: number;
 }
 
 // ---- Detected Object ----
@@ -143,12 +181,16 @@ export interface CleaningLog {
   };
   verification_result: {
     status: LogStatus;
-    rejection_reason?: string | null;
+    // Fix #81: use enum for consistent analytics
+    rejection_reason?: RejectionReason | null;
     reviewed_by?: string;
     reviewed_at?: string;
-    appeal_reason?: string;
+    // Fix #82: structured appeal reason
+    appeal_reason?: AppealReason;
     appeal_resolved_by?: string;
     appeal_resolved_at?: string;
+    // Fix #84: reason when appeal is denied
+    appeal_resolution_reason?: string;
   };
   created_at: string;
   updated_at?: string;

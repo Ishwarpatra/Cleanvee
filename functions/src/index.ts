@@ -1,4 +1,5 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { beforeUserCreated } from "firebase-functions/v2/identity";
 import * as admin from "firebase-admin";
 import { checkSlaCompliance } from "./slaMonitor";
 import { streamToBigQuery, aggregateStats } from "./analytics";
@@ -63,6 +64,8 @@ const AlertService = {
         score: overallScore,
         detected_hazards: hazards.map((h) => h.label),
       },
+      // Fix #91: record which Cloud Function created this alert
+      source_function: "onLogCreated:AlertService",
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -119,6 +122,8 @@ const FacilityStateService = {
       last_cleaned_at: cleanedAt,
       last_cleaned_timestamp: admin.firestore.Timestamp.fromDate(cleanedDate),
       current_status: "clean",  // Fix #56: lowercase matches CheckpointStatus enum
+      // Fix #63: record when the status transitioned for audit trail
+      became_clean_at: cleanedAt,
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -144,7 +149,9 @@ const SlaEventService = {
     logId: string,
     previousCleaningAt: string,
     gapDurationMs: number,
-    allowedDurationMs: number
+    allowedDurationMs: number,
+    // Fix #64: link recovery to the original breach alert
+    resolvedAlertId?: string
   ): Promise<void> {
     const gapHours = (gapDurationMs / (1000 * 60 * 60)).toFixed(2);
     const allowedHours = (allowedDurationMs / (1000 * 60 * 60)).toFixed(2);
@@ -154,6 +161,8 @@ const SlaEventService = {
       building_id: logData.building_id,
       checkpoint_id: logData.checkpoint_id,
       recovered_by_log_id: logId,
+      // Fix #64: reference to the original SLA_MISSING_CLEAN alert
+      resolved_alert_id: resolvedAlertId ?? null,
       details: {
         gap_duration_ms: gapDurationMs,
         gap_duration_hours: parseFloat(gapHours),
@@ -232,12 +241,22 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
             const timeSinceLastCleaning = currentTimestamp - lastTimestamp;
 
             if (timeSinceLastCleaning > maxGapMs) {
+              // Fix #64: find the original SLA alert ID to link to recovery
+              const breachAlertSnap = await db.collection("alerts")
+                .where("checkpoint_id", "==", logData.checkpoint_id)
+                .where("type", "==", "SLA_MISSING_CLEAN")
+                .where("status", "in", ["open", "acknowledged"])
+                .limit(1)
+                .get();
+              const resolvedAlertId = breachAlertSnap.empty ? undefined : breachAlertSnap.docs[0].id;
+
               await SlaEventService.recordBreachRecovery(
                 logData,
                 logId,
                 previousCleanedAt,
                 timeSinceLastCleaning,
-                maxGapMs
+                maxGapMs,
+                resolvedAlertId
               );
             }
           }
@@ -333,3 +352,28 @@ export const onOccupantFeedback = onDocumentCreated("occupant_feedback/{feedback
 // Export scheduled and analytics functions
 export { checkSlaCompliance };
 export { streamToBigQuery, aggregateStats };
+
+/**
+ * Fix #93: Auto-provision a Firestore user doc when Firebase Auth creates a new user.
+ * This closes the security gap where new users had no role/building assignment.
+ * Cloud Function runs server-side with admin SDK — not accessible by clients.
+ */
+export const onAuthUserCreated = beforeUserCreated(async (event) => {
+  const user = event.data;
+  if (!user) return;
+
+  // Create a minimal user doc with default cleaner role and no buildings
+  // Admin must then assign a role and buildings via the admin UI
+  await db.collection("users").doc(user.uid).set({
+    uid: user.uid,
+    email: user.email ?? "",
+    full_name: user.displayName ?? user.email ?? "New User",
+    role: "cleaner",               // default: least privileged role
+    assigned_building_ids: [],      // no buildings until admin assigns
+    is_active: true,
+    created_at: admin.firestore.FieldValue.serverTimestamp(),
+    created_by: "system:onAuthUserCreated",
+  });
+
+  console.log(`[onAuthUserCreated] Provisioned Firestore doc for new user: ${user.uid} (${user.email})`);
+});

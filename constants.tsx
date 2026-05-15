@@ -5,62 +5,34 @@ export const ALL_BUILDINGS: Building[] = [
   {
     id: 'bldg-001',
     name: 'Apex Tower HQ',
-    address: {
-      street: '101 Tech Blvd',
-      city: 'San Francisco',
-      state: 'CA',
-      zip: '94105'
-    },
-    client_sla_config: {
-      required_cleanings_per_day: 3,
-      cleaning_window_start: '06:00',
-      cleaning_window_end: '20:00'
-    }
+    address: { street: '101 Tech Blvd', city: 'San Francisco', state: 'CA', zip: '94105' },
+    client_sla_config: { required_cleanings_per_day: 3, cleaning_window_start: '06:00', cleaning_window_end: '20:00', max_cleaning_interval_hours: 4 },
+    created_at: '2024-01-01T00:00:00.000Z',
+    config_version: 1,
   },
   {
     id: 'bldg-002',
     name: 'Westside Logistics',
-    address: {
-      street: '4400 Industrial Pkwy',
-      city: 'Oakland',
-      state: 'CA',
-      zip: '94601'
-    },
-    client_sla_config: {
-      required_cleanings_per_day: 4,
-      cleaning_window_start: '05:00',
-      cleaning_window_end: '22:00'
-    }
+    address: { street: '4400 Industrial Pkwy', city: 'Oakland', state: 'CA', zip: '94601' },
+    client_sla_config: { required_cleanings_per_day: 4, cleaning_window_start: '05:00', cleaning_window_end: '22:00', max_cleaning_interval_hours: 3 },
+    created_at: '2024-01-01T00:00:00.000Z',
+    config_version: 1,
   },
   {
     id: 'bldg-003',
     name: 'Downtown Medical Center',
-    address: {
-      street: '500 Healthcare Blvd',
-      city: 'San Jose',
-      state: 'CA',
-      zip: '95113'
-    },
-    client_sla_config: {
-      required_cleanings_per_day: 6,
-      cleaning_window_start: '00:00',
-      cleaning_window_end: '23:59'
-    }
+    address: { street: '500 Healthcare Blvd', city: 'San Jose', state: 'CA', zip: '95113' },
+    client_sla_config: { required_cleanings_per_day: 6, cleaning_window_start: '00:00', cleaning_window_end: '23:59', max_cleaning_interval_hours: 2 },
+    created_at: '2024-01-01T00:00:00.000Z',
+    config_version: 1,
   },
   {
     id: 'bldg-004',
     name: 'Tech Campus Alpha',
-    address: {
-      street: '1 Innovation Way',
-      city: 'Palo Alto',
-      state: 'CA',
-      zip: '94301'
-    },
-    client_sla_config: {
-      required_cleanings_per_day: 2,
-      cleaning_window_start: '07:00',
-      cleaning_window_end: '19:00'
-    }
+    address: { street: '1 Innovation Way', city: 'Palo Alto', state: 'CA', zip: '94301' },
+    client_sla_config: { required_cleanings_per_day: 2, cleaning_window_start: '07:00', cleaning_window_end: '19:00', max_cleaning_interval_hours: 8 },
+    created_at: '2024-01-01T00:00:00.000Z',
+    config_version: 1,
   }
 ];
 
