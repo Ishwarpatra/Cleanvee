@@ -26,7 +26,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onAlertCreated = void 0;
+exports.onAlertUpdated = exports.onAlertCreated = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
 const admin = __importStar(require("firebase-admin"));
 const mail_1 = __importDefault(require("@sendgrid/mail"));
@@ -127,6 +127,70 @@ exports.onAlertCreated = (0, firestore_1.onDocumentCreated)({
     }
     catch (error) {
         console.error(`[NotificationService] Error sending email for Alert ${alertId}:`, error);
+    }
+});
+exports.onAlertUpdated = (0, firestore_1.onDocumentUpdated)({
+    document: "alerts/{alertId}",
+    secrets: [sendgridApiKey]
+}, async (event) => {
+    const snapshot = event.data;
+    if (!snapshot)
+        return;
+    const beforeData = snapshot.before.data();
+    const afterData = snapshot.after.data();
+    const alertId = event.params.alertId;
+    if (beforeData.status !== "resolved" && afterData.status === "resolved") {
+        const notifyUserIds = afterData.notify_user_ids || [];
+        if (notifyUserIds.length === 0)
+            return;
+        const validUserIds = [...new Set(notifyUserIds)].filter(id => typeof id === "string" && id.length > 0);
+        if (validUserIds.length === 0)
+            return;
+        const apiKey = sendgridApiKey.value() || "SG.placeholder";
+        mail_1.default.setApiKey(apiKey);
+        try {
+            const db = admin.firestore();
+            const emails = [];
+            const chunkSize = 10;
+            for (let i = 0; i < validUserIds.length; i += chunkSize) {
+                const chunk = validUserIds.slice(i, i + chunkSize);
+                const usersSnap = await db.collection("users").where("uid", "in", chunk).get();
+                usersSnap.forEach(doc => {
+                    if (doc.data().email)
+                        emails.push(doc.data().email);
+                });
+            }
+            if (emails.length === 0)
+                return;
+            const subject = `✅ RESOLVED: Cleanvee Alert: ${afterData.type.replace(/_/g, " ")}`;
+            const textContent = `The following alert has been marked as RESOLVED.\n\nType: ${afterData.type}\nBuilding ID: ${afterData.building_id}\nCheckpoint ID: ${afterData.checkpoint_id}\nResolved At: ${afterData.resolved_at || new Date().toISOString()}`;
+            const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h2 style="color: #16a34a;">✅ Alert Resolved</h2>
+          <p>The following alert has been successfully resolved and closed.</p>
+          <p><strong>Type:</strong> ${afterData.type.replace(/_/g, " ")}</p>
+          <p><strong>Building ID:</strong> ${afterData.building_id}</p>
+          <p><strong>Checkpoint ID:</strong> ${afterData.checkpoint_id}</p>
+        </div>
+      `;
+            const msg = {
+                to: emails,
+                from: fromEmail.value(),
+                subject: subject,
+                text: textContent,
+                html: htmlContent,
+            };
+            if (apiKey === "SG.placeholder") {
+                console.log(`[NotificationService] SENDGRID_API_KEY missing. Mocking RESOLUTION email to: ${emails.join(", ")}`);
+            }
+            else {
+                await mail_1.default.send(msg);
+                console.log(`[NotificationService] Dispatched RESOLUTION emails for Alert ${alertId}.`);
+            }
+        }
+        catch (error) {
+            console.error(`[NotificationService] Error sending resolution email for Alert ${alertId}:`, error);
+        }
     }
 });
 //# sourceMappingURL=notifications.js.map

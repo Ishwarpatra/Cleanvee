@@ -291,17 +291,26 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
 
       console.log(`[Trigger] Successfully processed verified Log ${logId}`);
 
-      // Task 5: Random Audit Logic (Streak tracking)
-      // If a cleaner gets 10 "verified" logs in a row, trigger a manual audit
-      const userRef = db.collection("users").doc(logData.cleaner_id);
+      // Task 5: Random Audit Logic (Streak tracking per building - Fix #113)
+      // If a cleaner gets 10 "verified" logs in a row at a specific building, trigger a manual audit
+      const streakId = `${logData.building_id}_${logData.cleaner_id}`;
+      const streakRef = db.collection("streaks").doc(streakId);
+      
       try {
         await db.runTransaction(async (transaction) => {
-          const userDoc = await transaction.get(userRef);
-          const currentStreak = (userDoc.exists ? userDoc.data()?.verified_streak : 0) || 0;
+          const streakDoc = await transaction.get(streakRef);
+          const currentStreak = (streakDoc.exists ? streakDoc.data()?.verified_streak : 0) || 0;
           const newStreak = currentStreak + 1;
 
+          transaction.set(streakRef, {
+            cleaner_id: logData.cleaner_id,
+            building_id: logData.building_id,
+            verified_streak: newStreak,
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+
           if (newStreak >= 10) {
-            console.log(`[Trigger] Cleaner ${logData.cleaner_id} reached 10 verified logs. Triggering SUPERVISOR_AUDIT_REQUEST.`);
+            console.log(`[Trigger] Cleaner ${logData.cleaner_id} reached 10 verified logs at Building ${logData.building_id}. Triggering SUPERVISOR_AUDIT_REQUEST.`);
 
             await db.collection("alerts").add({
               building_id: logData.building_id,
@@ -319,9 +328,9 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
               created_at: admin.firestore.FieldValue.serverTimestamp(),
             });
 
-            transaction.set(userRef, { verified_streak: 0 }, { merge: true });
+            transaction.set(streakRef, { verified_streak: 0 }, { merge: true });
           } else {
-            transaction.set(userRef, { verified_streak: newStreak }, { merge: true });
+            transaction.set(streakRef, { verified_streak: newStreak }, { merge: true });
           }
         });
       } catch (e) {
@@ -331,11 +340,17 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
     } else {
       console.log(`[Trigger] Log ${logId} not verified (status: ${logData.verification_result?.status}). Skipping state update.`);
 
-      // Fix #60: Reset streak on any non-verified outcome (rejected, flagged, appealed)
+      // Fix #60, #113: Reset streak on any non-verified outcome (rejected, flagged, appealed) per building
       const nonVerifiedStatuses = ["rejected", "flagged_for_review", "appealed"];
       if (logData.verification_result?.status && nonVerifiedStatuses.includes(logData.verification_result.status)) {
-        await db.collection("users").doc(logData.cleaner_id).set({ verified_streak: 0 }, { merge: true });
-        console.log(`[Trigger] Reset streak for cleaner ${logData.cleaner_id} (status: ${logData.verification_result.status})`);
+        const streakId = `${logData.building_id}_${logData.cleaner_id}`;
+        await db.collection("streaks").doc(streakId).set({
+          cleaner_id: logData.cleaner_id,
+          building_id: logData.building_id,
+          verified_streak: 0,
+          updated_at: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        console.log(`[Trigger] Reset streak for cleaner ${logData.cleaner_id} at building ${logData.building_id} to 0 due to non-verified status.`);
       }
     }
 
@@ -378,7 +393,7 @@ export const onOccupantFeedback = onDocumentCreated("occupant_feedback/{feedback
 // Export scheduled and analytics functions
 export { checkSlaCompliance };
 export { streamToBigQuery, aggregateStats };
-export { onAlertCreated } from "./notifications";
+export { onAlertCreated, onAlertUpdated } from "./notifications";
 
 /**
  * Fix #93: Auto-provision a Firestore user doc when Firebase Auth creates a new user.

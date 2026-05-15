@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onAuthUserCreated = exports.onAlertCreated = exports.aggregateStats = exports.streamToBigQuery = exports.checkSlaCompliance = exports.onOccupantFeedback = exports.onLogCreated = void 0;
+exports.onAuthUserCreated = exports.onAlertUpdated = exports.onAlertCreated = exports.aggregateStats = exports.streamToBigQuery = exports.checkSlaCompliance = exports.onOccupantFeedback = exports.onLogCreated = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
 const identity_1 = require("firebase-functions/v2/identity");
 const admin = __importStar(require("firebase-admin"));
@@ -185,14 +185,21 @@ exports.onLogCreated = (0, firestore_1.onDocumentCreated)("cleaning_logs/{logId}
                 }
             }
             console.log(`[Trigger] Successfully processed verified Log ${logId}`);
-            const userRef = db.collection("users").doc(logData.cleaner_id);
+            const streakId = `${logData.building_id}_${logData.cleaner_id}`;
+            const streakRef = db.collection("streaks").doc(streakId);
             try {
                 await db.runTransaction(async (transaction) => {
-                    const userDoc = await transaction.get(userRef);
-                    const currentStreak = (userDoc.exists ? userDoc.data()?.verified_streak : 0) || 0;
+                    const streakDoc = await transaction.get(streakRef);
+                    const currentStreak = (streakDoc.exists ? streakDoc.data()?.verified_streak : 0) || 0;
                     const newStreak = currentStreak + 1;
+                    transaction.set(streakRef, {
+                        cleaner_id: logData.cleaner_id,
+                        building_id: logData.building_id,
+                        verified_streak: newStreak,
+                        updated_at: admin.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
                     if (newStreak >= 10) {
-                        console.log(`[Trigger] Cleaner ${logData.cleaner_id} reached 10 verified logs. Triggering SUPERVISOR_AUDIT_REQUEST.`);
+                        console.log(`[Trigger] Cleaner ${logData.cleaner_id} reached 10 verified logs at Building ${logData.building_id}. Triggering SUPERVISOR_AUDIT_REQUEST.`);
                         await db.collection("alerts").add({
                             building_id: logData.building_id,
                             checkpoint_id: logData.checkpoint_id,
@@ -207,10 +214,10 @@ exports.onLogCreated = (0, firestore_1.onDocumentCreated)("cleaning_logs/{logId}
                             },
                             created_at: admin.firestore.FieldValue.serverTimestamp(),
                         });
-                        transaction.set(userRef, { verified_streak: 0 }, { merge: true });
+                        transaction.set(streakRef, { verified_streak: 0 }, { merge: true });
                     }
                     else {
-                        transaction.set(userRef, { verified_streak: newStreak }, { merge: true });
+                        transaction.set(streakRef, { verified_streak: newStreak }, { merge: true });
                     }
                 });
             }
@@ -222,8 +229,14 @@ exports.onLogCreated = (0, firestore_1.onDocumentCreated)("cleaning_logs/{logId}
             console.log(`[Trigger] Log ${logId} not verified (status: ${logData.verification_result?.status}). Skipping state update.`);
             const nonVerifiedStatuses = ["rejected", "flagged_for_review", "appealed"];
             if (logData.verification_result?.status && nonVerifiedStatuses.includes(logData.verification_result.status)) {
-                await db.collection("users").doc(logData.cleaner_id).set({ verified_streak: 0 }, { merge: true });
-                console.log(`[Trigger] Reset streak for cleaner ${logData.cleaner_id} (status: ${logData.verification_result.status})`);
+                const streakId = `${logData.building_id}_${logData.cleaner_id}`;
+                await db.collection("streaks").doc(streakId).set({
+                    cleaner_id: logData.cleaner_id,
+                    building_id: logData.building_id,
+                    verified_streak: 0,
+                    updated_at: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                console.log(`[Trigger] Reset streak for cleaner ${logData.cleaner_id} at building ${logData.building_id} to 0 due to non-verified status.`);
             }
         }
     }
@@ -256,6 +269,7 @@ exports.onOccupantFeedback = (0, firestore_1.onDocumentCreated)("occupant_feedba
 });
 var notifications_1 = require("./notifications");
 Object.defineProperty(exports, "onAlertCreated", { enumerable: true, get: function () { return notifications_1.onAlertCreated; } });
+Object.defineProperty(exports, "onAlertUpdated", { enumerable: true, get: function () { return notifications_1.onAlertUpdated; } });
 exports.onAuthUserCreated = (0, identity_1.beforeUserCreated)(async (event) => {
     const user = event.data;
     if (!user)
