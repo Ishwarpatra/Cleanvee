@@ -1,162 +1,370 @@
-# Cleanvee V2 Architecture
+# Cleanvee Architecture Documentation
 
-## Overview
+This document describes the system design, data models, and technical decisions behind Cleanvee.
 
-Cleanvee has evolved from a simple data-logging prototype (V1) to a **compliance-focused enterprise platform** (V2) with offline support, automated SLA enforcement, and privacy-first AI integration.
+## Table of Contents
+
+1. [System Architecture](#system-architecture)
+2. [Data Models](#data-models)
+3. [Component Architecture](#component-architecture)
+4. [State Management](#state-management)
+5. [Authentication & Authorization](#authentication--authorization)
+6. [Backend Services](#backend-services)
+7. [API Design](#api-design)
+8. [Security Model](#security-model)
+9. [Performance Considerations](#performance-considerations)
+10. [Deployment Architecture](#deployment-architecture)
 
 ---
 
-## Architecture Diagram
+## System Architecture
 
-```mermaid
-flowchart TB
-    subgraph Mobile["📱 Mobile App (Flutter)"]
-        NFC[NFC Tap] --> Log[CleaningLogV2]
-        Camera[Photo Capture] --> AI[On-device AI]
-        AI --> Log
-        Log --> Offline[(Local SQLite)]
-        Offline -->|SyncStatus| Cloud
-    end
-    
-    subgraph Cloud["☁️ Firebase Backend"]
-        Cloud[(Firestore)] --> Trigger[onLogCreated]
-        Trigger --> Alerts[Create Alert]
-        Trigger --> SLA[SLA Check]
-        
-        Watchdog[⏰ SLA Watchdog] -->|every 15 min| SLA
-        SLA --> Alerts
-    end
-    
-    subgraph MCP["🔐 MCP Privacy Layer"]
-        Alerts --> Filter[PII Filter]
-        Filter --> Gemini[Google Gemini]
-        Filter --> Tickets[ServiceNow/Jira]
-    end
-    
-    subgraph Dashboard["💻 Web Dashboard"]
-        Cloud --> Realtime[Real-time Sync]
-        Realtime --> LogFeed[LogFeed.tsx]
-        Realtime --> FloorPlan[FloorPlan]
-    end
+### High-Level Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Client Layer                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────────┐  ┌──────────────────┐                 │
+│  │   Web Browser    │  │   Mobile App     │                 │
+│  │  (React/TS)      │  │  (Flutter)       │                 │
+│  │  - Dashboard     │  │  - NFC Scanning  │                 │
+│  │  - Reports       │  │  - Photo Capture │                 │
+│  │  - Settings      │  │  - Offline Sync  │                 │
+│  └────────┬─────────┘  └────────┬─────────┘                 │
+│           │                      │                            │
+├───────────┴──────────────────────┴────────────────────────────┤
+│                    Network Layer (REST/WebSocket)             │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│           ┌──────────────────────────────┐                   │
+│           │   Firebase Backend           │                   │
+│           ├──────────────────────────────┤                   │
+│           │ • Firestore (Real-time DB)   │                   │
+│           │ • Cloud Functions            │                   │
+│           │ • Cloud Storage              │                   │
+│           │ • Authentication             │                   │
+│           │ • Cloud Messaging            │                   │
+│           └──────────────────────────────┘                   │
+│                      │                                        │
+├──────────────────────┴────────────────────────────────────────┤
+│                  External Services Layer                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │ Gemini 3.5   │  │ SendGrid     │  │ Twilio       │       │
+│  │ (AI Analysis)│  │ (Email)      │  │ (SMS)        │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
+### Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | React 18 + TypeScript | UI framework |
+| **State Management** | Context API + useReducer | Global state |
+| **Styling** | Tailwind CSS | Utility-first CSS |
+| **Mobile** | Flutter 3.0+ | Cross-platform mobile |
+| **Backend** | Firebase | BaaS platform |
+| **Database** | Firestore | Real-time document DB |
+| **Functions** | Cloud Functions | Serverless compute |
+| **Storage** | Cloud Storage | File storage |
+| **Auth** | Firebase Auth | Authentication |
+| **AI** | Google Gemini 3.5 | Vision analysis |
+| **CI/CD** | GitHub Actions | Automated deployment |
+
 ---
 
-## V1 → V2 Data Model Evolution
+## Data Models
 
-| Feature | V1 (cleaning_log_model.dart) | V2 (cleaning_log_model_v2.dart) |
-|---------|------------------------------|----------------------------------|
-| **Structure** | Generic `Map<String, dynamic>` | Strongly typed classes |
-| **Offline** | No support | `SyncStatus` enum (synced/pendingUpload) |
-| **Verification** | Simple map | `VerificationResult` class + `LogStatus` enum |
-| **AI Data** | Generic map | `DetectedObject` with bounding boxes |
-| **Location** | Not modeled | `GeoLocation` class for anti-spoofing |
+### Core Entities
 
-### Key Classes
+#### Building
+```typescript
+interface Building {
+  id: string;
+  name: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
+  client_sla_config: {
+    required_cleanings_per_day: number;
+    cleaning_window_start: string;
+    cleaning_window_end: string;
+    max_cleaning_interval_hours: number;
+    grace_period_minutes: number;
+  };
+  floor_plan_url?: string;
+  is_active: boolean;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+```
 
-```dart
-// Offline-first sync status
-enum SyncStatus { synced, pendingUpload }
+#### Checkpoint
+```typescript
+interface Checkpoint {
+  id: string;
+  building_id: string;
+  name: string;
+  location: string;
+  nfc_tag_id?: string;
+  required_frequency: "hourly" | "daily" | "weekly";
+  last_cleaned?: Timestamp;
+  current_status: "clean" | "dirty" | "pending" | "overdue";
+  is_active: boolean;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+```
 
-// Verification states
-enum LogStatus { verified, rejected, flaggedForReview }
+#### CleaningLog
+```typescript
+interface CleaningLog {
+  id: string;
+  checkpoint_id: string;
+  building_id: string;
+  worker_id: string;
+  timestamp: Timestamp;
+  photo_url?: string;
+  verification_result?: {
+    score: number;
+    status: "verified" | "rejected";
+    reason?: string;
+    ai_feedback?: string;
+  };
+  status: "pending" | "verified" | "rejected" | "appealed";
+  notes?: string;
+  is_active: boolean;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+```
 
-// AI detection result
-class DetectedObject {
-  final String label;
-  final double confidence;
-  final BoundingBox boundingBox;
+#### User
+```typescript
+interface User {
+  uid: string;
+  email: string;
+  full_name: string;
+  role: "cleaner" | "manager" | "admin";
+  assigned_building_ids: string[];
+  phone?: string;
+  avatar_url?: string;
+  is_active: boolean;
+  created_at: Timestamp;
+  updated_at: Timestamp;
 }
 ```
 
 ---
 
+## Component Architecture
+
+### Component Hierarchy
+
+```
+App
+├── LoginScreen (if not authenticated)
+├── Header
+│   ├── NotificationDropdown
+│   └── ProfileDropdown
+├── Sidebar
+│   ├── Navigation (role-based)
+│   └── AI Insights Panel
+├── Main Content Area
+│   ├── DashboardView
+│   │   ├── StatsOverview
+│   │   ├── DashboardGrid
+│   │   ├── LogFeed
+│   │   └── FloorPlan
+│   ├── BuildingsView
+│   │   └── BuildingForm (modal)
+│   ├── TeamView
+│   │   └── UserForm (modal)
+│   ├── SettingsView
+│   │   ├── AIConfiguration
+│   │   ├── NotificationSettings
+│   │   └── MobileSettings
+│   └── ReportModal
+└── ErrorBoundary
+```
+
+---
+
+## State Management
+
+### Context Hierarchy
+
+```
+AppContext
+├── activeTab: string
+├── selectedBuilding: Building
+├── selectedCheckpointId: string
+├── selectedLog: CleaningLog
+├── viewMode: "grid" | "map"
+├── showReportModal: boolean
+├── reportLoading: boolean
+└── error: string | null
+
+SettingsContext
+├── settings: AppSettings
+├── hasChanges: boolean
+├── isSaving: boolean
+├── saveError: string | null
+└── updateSettings, saveSettings, resetSettings
+
+AuthContext
+├── user: AuthUser | null
+├── loading: boolean
+├── error: string | null
+└── logout
+```
+
+---
+
+## Authentication & Authorization
+
+### Role-Based Access Control (RBAC)
+
+| Role | Permissions |
+|------|-------------|
+| **Cleaner** | View assigned buildings, submit logs, view personal stats |
+| **Manager** | View all buildings, manage team, configure SLA, view reports |
+| **Admin** | Full system access, user management, system settings |
+
+---
+
 ## Backend Services
 
-### 1. Alert Trigger (`functions/src/index.ts`)
+### Cloud Functions
 
-Fires on every new cleaning log:
-- **Quality Check**: Score < 70 or hazards detected → Creates `QUALITY_FAILURE` or `SAFETY_HAZARD` alert
-- **SLA Recovery**: Detects if gap exceeded allowed window and marks as recovered
+#### 1. SLA Monitor (`slaMonitor.ts`)
+- **Trigger**: Firestore write to `cleaning_logs`
+- **Logic**: Check if cleaning interval exceeds SLA threshold
+- **Action**: Create alert, send notification
 
-### 2. SLA Watchdog (`functions/src/slaMonitor.ts`)
+#### 2. Analytics (`analytics.ts`)
+- **Trigger**: Scheduled (daily)
+- **Logic**: Aggregate cleaning logs, compute statistics
+- **Action**: Write to BigQuery, update `daily_stats` collection
 
-Scheduled job running every 15 minutes:
-- Checks all checkpoints for cleaning gaps
-- Creates `SLA_MISSING_CLEAN` alert if > 4 hours since last clean
-- Prevents duplicate alerts by checking for existing OPEN alerts
-
-### 3. MCP Privacy Firewall (`services/mcpServer.ts`)
-
-Model Context Protocol integration:
-- **PII Filtering**: Strips worker IDs, emails, geolocations before AI access
-- **Ticketing**: Auto-routes alerts to ServiceNow/Jira
-- **Audit Trail**: Logs what data was filtered
+#### 3. Notification Service
+- **Trigger**: Alert creation
+- **Logic**: Format message, select channel (email/SMS)
+- **Action**: Send via SendGrid/Twilio
 
 ---
 
-## Frontend Components
+## Security Model
 
-### LogFeed.tsx
+### Firestore Security Rules
 
-Displays real-time cleaning activity with V2 enhancements:
-
-| Feature | Implementation |
-|---------|----------------|
-| **Status Badges** | Green (Verified), Red (Rejected), Amber (Review) |
-| **AI Score** | Shows percentage with color coding (>80% = green) |
-| **Live Sync** | Animated indicator for real-time updates |
-
----
-
-## Key Capabilities
-
-| Capability | Component | Description |
-|------------|-----------|-------------|
-| **Offline Usage** | `SyncStatus` enum | Store-and-forward when disconnected |
-| **Automated SLA** | `slaMonitor.ts` | 15-min checks, 4-hour gap rule |
-| **Enterprise Privacy** | `mcpServer.ts` | PII never reaches AI |
-| **Ticketing** | ServiceNow/Jira | Auto-create incidents from alerts |
-
----
-
-## Configuration
-
-### Environment Variables
-
-```bash
-# AI
-VITE_GEMINI_API_KEY=your-key
-
-# ServiceNow (optional)
-SERVICENOW_INSTANCE=your-instance.service-now.com
-SERVICENOW_USERNAME=api_user
-SERVICENOW_PASSWORD=api_password
-
-# Jira (optional)
-JIRA_HOST=your-company.atlassian.net
-JIRA_EMAIL=api@company.com
-JIRA_API_TOKEN=your-token
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only read their own profile
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow write: if request.auth.uid == userId && isManager();
+    }
+    
+    // Managers can read team data
+    match /users/{userId} {
+      allow read: if isManager();
+    }
+    
+    // Cleaners can read assigned buildings
+    match /buildings/{buildingId} {
+      allow read: if canAccessBuilding(buildingId);
+    }
+    
+    // Cleaners can submit logs to assigned buildings
+    match /cleaning_logs/{logId} {
+      allow create: if canAccessBuilding(resource.data.building_id);
+      allow read: if canAccessBuilding(resource.data.building_id);
+    }
+    
+    // Admins have full access
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
 ```
 
 ---
 
-## File Structure
+## Performance Considerations
+
+### Optimization Strategies
+
+1. **Real-Time Listeners**: Firestore listeners only on visible data
+2. **Pagination**: LogFeed paginates results (50 items per page)
+3. **Caching**: Settings cached in localStorage
+4. **Lazy Loading**: Components load data on demand
+5. **Debouncing**: Search and filter inputs debounced
+
+### Firestore Indexes
 
 ```
-├── lib/models/
-│   ├── cleaning_log_model.dart      # V1 (deprecated)
-│   └── cleaning_log_model_v2.dart   # V2 with typed classes
-├── functions/src/
-│   ├── index.ts                     # Alert triggers
-│   ├── slaMonitor.ts                # Watchdog scheduler
-│   └── analytics.ts                 # BigQuery streaming
-├── services/
-│   ├── mcpServer.ts                 # MCP tool definitions
-│   ├── privacy/                     # PII filtering
-│   └── ticketing/                   # ServiceNow/Jira
-└── components/
-    ├── LogFeed.tsx                  # Live activity feed
-    ├── FloorPlan.tsx                # Interactive map
-    └── DashboardGrid.tsx            # Status grid view
+Composite indexes:
+- building_id + timestamp (cleaning_logs)
+- building_id + status (cleaning_logs)
+- worker_id + timestamp (cleaning_logs)
+- checkpoint_id + timestamp (cleaning_logs)
 ```
+
+---
+
+## Deployment Architecture
+
+### Development Environment
+
+```
+Local Machine
+├── npm run dev (Vite dev server on :5173)
+├── Firebase Emulator (Firestore on :8080)
+└── Flutter app (local device/emulator)
+```
+
+### Production Environment
+
+```
+Firebase Project (production)
+├── Firestore (production data)
+├── Cloud Functions (production)
+├── Cloud Storage (production)
+├── Hosting (cleanvee.app)
+├── Cloud CDN (caching)
+└── Cloud Armor (DDoS protection)
+```
+
+### CI/CD Pipeline
+
+```
+Git Push
+  ↓
+GitHub Actions
+  ├── Lint & Type Check
+  ├── Unit Tests
+  ├── Security Scan
+  └── Build
+    ↓
+  Deploy to Firebase
+    ├── Hosting
+    ├── Functions
+    └── Rules
+```
+
+---
+
+**Last Updated**: 2025-05-15  
+**Version**: 2.0.0

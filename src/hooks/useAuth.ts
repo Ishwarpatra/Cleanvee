@@ -25,6 +25,7 @@ interface AuthState {
   user: AuthUser | null;
   loading: boolean;
   error: string | null;
+  logout?: () => Promise<void>;
 }
 
 const DEMO_USER: AuthUser = {
@@ -124,7 +125,22 @@ export function useAuth(): AuthState {
     return () => { if (unsubscribe) unsubscribe(); };
   }, []);
 
-  return state;
+  const logout = async () => {
+    const firebaseConfigured = isFirebaseAuthConfigured();
+    if (firebaseConfigured) {
+      try {
+        const { getAuth, signOut } = await import('firebase/auth');
+        const { getApp } = await import('firebase/app');
+        const auth = getAuth(getApp());
+        await signOut(auth);
+      } catch (err) {
+        console.error('Logout failed:', err);
+      }
+    }
+    setState({ user: null, loading: false, error: null });
+  };
+
+  return { ...state, logout };
 }
 
 // ---- Permission helpers ----

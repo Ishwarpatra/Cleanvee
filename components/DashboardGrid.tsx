@@ -3,12 +3,7 @@ import { ArrowUpRight, ArrowDownRight, Users, CheckCircle, Clock, AlertOctagon, 
 import { CleaningLog, Checkpoint } from '../types';
 
 // Mock Data for demonstration
-const MOCK_CHECKPOINTS = [
-  { id: 'c1', location_label: 'Main Lobby', status: 'CLEAN', last_cleaned: '10 mins ago', building_id: 'b1' },
-  { id: 'c2', location_label: 'Restroom 2F', status: 'OVERDUE', last_cleaned: '5 hours ago', building_id: 'b1' },
-  { id: 'c3', location_label: 'Conf Room A', status: 'DIRTY', last_cleaned: '30 mins ago', building_id: 'b1' }, // Failed inspection
-  { id: 'c4', location_label: 'Loading Dock', status: 'CLEAN', last_cleaned: '1 hour ago', building_id: 'b2' },
-];
+// MOCK_CHECKPOINTS removed, using props instead
 
 interface DashboardGridProps {
   checkpoints?: Checkpoint[];
@@ -16,17 +11,17 @@ interface DashboardGridProps {
   onSelectCheckpoint?: (id: string) => void;
 }
 
-const DashboardGrid: React.FC<DashboardGridProps> = () => {
-  const [selectedBuilding, setSelectedBuilding] = useState('b1');
+const DashboardGrid: React.FC<DashboardGridProps> = ({ checkpoints = [], logs = [], onSelectCheckpoint }) => {
+  // selectedBuilding state removed, buildingId should come from context/props
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
   // Filter data based on selection
-  const filteredCheckpoints = MOCK_CHECKPOINTS.filter(c => c.building_id === selectedBuilding);
+  const filteredCheckpoints = checkpoints; // Assuming checkpoints are already filtered by buildingId from useFirestoreData
 
   // Dynamic Stats Calculation
-  const totalRooms = filteredCheckpoints.length;
-  const overdueRooms = filteredCheckpoints.filter(c => c.status === 'OVERDUE').length;
-  const cleanRooms = filteredCheckpoints.filter(c => c.status === 'CLEAN').length;
+  const totalRooms = checkpoints.length;
+  const overdueRooms = checkpoints.filter(c => c.current_status === 'OVERDUE').length;
+  const cleanRooms = checkpoints.filter(c => c.current_status === 'CLEAN').length;
 
   return (
     <div className="space-y-6">
@@ -34,23 +29,11 @@ const DashboardGrid: React.FC<DashboardGridProps> = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Operations Overview</h1>
+          {/* Building selector removed, handled by Header component */}
           <p className="text-gray-500 text-sm">Real-time facility status monitoring</p>
         </div>
 
-        <div className="flex items-center space-x-3 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-          <span className="pl-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Location:</span>
-          <div className="relative">
-            <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="appearance-none bg-transparent py-1 pl-2 pr-8 text-sm font-medium text-gray-900 focus:outline-none cursor-pointer"
-            >
-              <option value="b1">Apex Tower HQ</option>
-              <option value="b2">Westside Logistics</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-2 top-1.5 text-gray-400 pointer-events-none" />
-          </div>
-        </div>
+
       </div>
 
       {/* 2. Key Metrics Cards */}
@@ -100,9 +83,10 @@ const DashboardGrid: React.FC<DashboardGridProps> = () => {
 
         {viewMode === 'grid' ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredCheckpoints.map((room) => (
-              <RoomCard key={room.id} room={room} />
+            {filteredCheckpoints.map((checkpoint) => (
+              <RoomCard key={checkpoint.id} checkpoint={checkpoint} onSelectCheckpoint={onSelectCheckpoint} />
             ))}
+
             {filteredCheckpoints.length === 0 && (
               <div className="col-span-full text-center py-10 text-gray-400">No rooms configured for this building.</div>
             )}
@@ -123,7 +107,17 @@ const DashboardGrid: React.FC<DashboardGridProps> = () => {
 
 // --- Helper Components ---
 
-const StatCard = ({ title, value, trend, icon: Icon, color, bgColor, trendColor = "text-green-500" }: any) => (
+interface StatCardProps {
+  title: string;
+  value: string;
+  trend: string;
+  icon: React.ElementType;
+  color: string;
+  bgColor: string;
+  trendColor?: string;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ title, value, trend, icon: Icon, color, bgColor, trendColor = "text-green-500" }) => (
   <div className="bg-white p-5 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
     <div className="flex justify-between items-start">
       <div>
@@ -144,31 +138,34 @@ const StatCard = ({ title, value, trend, icon: Icon, color, bgColor, trendColor 
   </div>
 );
 
-const RoomCard = ({ room }: { room: any }) => {
+const RoomCard: React.FC<{ checkpoint: Checkpoint; onSelectCheckpoint?: (id: string) => void }> = ({ checkpoint, onSelectCheckpoint }) => {
   // Determine Color Logic
-  let statusColors = "bg-gray-50 border-gray-200";
+  let statusColors = "bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700";
   let icon = <CheckCircle size={16} className="text-gray-400" />;
 
-  if (room.status === 'CLEAN') {
+  if (checkpoint.current_status === 'CLEAN') {
     statusColors = "bg-green-50 border-green-200 hover:border-green-300";
     icon = <CheckCircle size={16} className="text-green-600" />;
-  } else if (room.status === 'OVERDUE') {
+  } else if (checkpoint.current_status === 'OVERDUE') {
     statusColors = "bg-amber-50 border-amber-200 hover:border-amber-300";
     icon = <Clock size={16} className="text-amber-600" />;
-  } else if (room.status === 'DIRTY') {
+  } else if (checkpoint.current_status === 'DIRTY') {
     statusColors = "bg-red-50 border-red-200 hover:border-red-300";
     icon = <AlertOctagon size={16} className="text-red-600" />;
   }
 
   return (
-    <div className={`p-4 rounded-lg border transition-all cursor-pointer hover:shadow-sm ${statusColors}`}>
+    <div
+      className={`p-4 rounded-lg border transition-all cursor-pointer hover:shadow-sm ${statusColors}`}
+      onClick={() => onSelectCheckpoint?.(checkpoint.id)}
+    >
       <div className="flex justify-between items-start mb-2">
-        <span className="font-semibold text-gray-800 truncate">{room.location_label}</span>
+        <span className="font-semibold text-gray-800 dark:text-white truncate">{checkpoint.location_label}</span>
         {icon}
       </div>
       <div className="text-xs text-gray-500">
-        <p>Status: <span className="font-medium">{room.status}</span></p>
-        <p>Last: {room.last_cleaned}</p>
+        <p>Status: <span className="font-medium">{checkpoint.current_status}</span></p>
+        <p>Last: {checkpoint.last_cleaned_timestamp ? new Date(checkpoint.last_cleaned_timestamp).toLocaleString() : 'N/A'}</p>
       </div>
     </div>
   );
