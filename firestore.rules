@@ -91,11 +91,14 @@ service cloud.firestore {
         request.resource.data.building_id ==
           get(/databases/$(database)/documents/checkpoints/$(request.resource.data.checkpoint_id)).data.building_id &&
         // Fix #75: block backdated timestamps (must be within 5 minutes of server time)
-        request.resource.data.created_at >= (request.time - duration.value(5, 'm')).toRfc3339String();
+        request.resource.data.created_at >= (request.time - duration.value(5, 'm')).toRfc3339String() &&
+        // Fix #139: validate NFC tag hash if method is NFC
+        (request.resource.data.proof_of_presence.method != 'nfc' || 
+         request.resource.data.proof_of_presence.identifier == get(/databases/$(database)/documents/checkpoints/$(request.resource.data.checkpoint_id)).data.nfc_tag_id);
       // Logs are IMMUTABLE after creation — only managers can update verification_result
       allow update: if isManagerOrAdmin() &&
         userAssignedToBuilding(resource.data.building_id) &&
-        // Only allow updating the verification_result field
+        // Fix #142: Only allow updating the verification_result field, preventing proof_of_presence tampering
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verification_result', 'updated_at']);
       // Nobody can delete logs (audit trail)
       allow delete: if false;
