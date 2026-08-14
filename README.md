@@ -29,6 +29,7 @@ Cleanvee transforms facility management with:
 
 ## 📋 Table of Contents
 
+- [Forensics Proof of Concept](#forensics-proof-of-concept)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
 - [Features](#features)
@@ -38,6 +39,12 @@ Cleanvee transforms facility management with:
 - [Deployment](#deployment)
 - [Security](#security)
 - [Contributing](#contributing)
+
+---
+
+## Forensics Proof of Concept
+
+This repository also contains an offline-first, rule-based implementation of the supplied **Multi-Agent Autonomous Cyber-Forensics** proof of concept under [`forensics_poc/`](forensics_poc/). It provides validated evidence contracts, concurrent specialist analysis, evidence fusion, conservative coordination, audit-ledger verification, reports, an API, tests, and hardened operational prompts. It is intentionally isolated from the Cleanvee facility-management application and is documented in its own [README](forensics_poc/README.md).
 
 ---
 
