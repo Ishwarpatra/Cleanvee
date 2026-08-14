@@ -27,12 +27,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Generated multi-agent forensic POC outputs
-forensics_poc/cases/
-forensics_poc/reports/
-forensics_poc/.pytest_cache/
-forensics_poc/.coverage
-forensics_poc/*.egg-info/
-forensics_poc/src/*.egg-info/
-forensics_poc/**/__pycache__/
