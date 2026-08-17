@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cleaning_log_provider.dart';
 
@@ -56,9 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Text('Sign Out'),
                     onTap: () async {
                       await authProvider.logout();
-                      if (mounted) {
-                        Navigator.of(context).pushReplacementNamed('/login');
-                      }
+                      if (mounted) context.go('/login');
                     },
                   ),
                 ],

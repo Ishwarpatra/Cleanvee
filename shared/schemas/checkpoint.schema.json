@@ -4,6 +4,7 @@
     "title": "Checkpoint",
     "description": "A checkpoint/room within a building that requires cleaning verification",
     "type": "object",
+    "additionalProperties": false,
     "required": [
         "id",
         "building_id",
@@ -87,6 +88,7 @@
         },
         "AIConfig": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "model_version": {
                     "type": "string",

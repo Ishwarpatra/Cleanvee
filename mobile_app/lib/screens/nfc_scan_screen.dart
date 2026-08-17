@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 
 class NfcScanScreen extends StatefulWidget {
@@ -7,56 +8,43 @@ class NfcScanScreen extends StatefulWidget {
   const NfcScanScreen({Key? key, required this.expectedCheckpointId}) : super(key: key);
 
   @override
-  _NfcScanScreenState createState() => _NfcScanScreenState();
+  State<NfcScanScreen> createState() => _NfcScanScreenState();
 }
 
 class _NfcScanScreenState extends State<NfcScanScreen> {
-  ValueNotifier<dynamic> result = ValueNotifier(null);
+  String? _message;
   bool _isScanning = false;
-  bool _isVerified = false;
 
   @override
   void initState() {
     super.initState();
-    _startNFCScan();
+    _startNfcScan();
   }
 
-  void _startNFCScan() async {
-    bool isAvailable = await NfcManager.instance.isAvailable();
-    
+  Future<void> _startNfcScan() async {
+    setState(() {
+      _isScanning = true;
+      _message = null;
+    });
+
+    final isAvailable = await NfcManager.instance.isAvailable();
     if (!isAvailable) {
-      result.value = 'NFC is not available on this device.';
+      if (mounted) {
+        setState(() {
+          _isScanning = false;
+          _message = 'NFC is not available on this device.';
+        });
+      }
       return;
     }
 
-    setState(() {
-      _isScanning = true;
-    });
-
-    NfcManager.instance.startSession(onDiscovered: (NfcTag tag) async {
-      result.value = tag.data;
-      
-      // In a real implementation, we would decode the NDEF message
-      // and verify the payload contains a cryptographically signed HMAC 
-      // of the checkpoint ID to prevent spoofing (Fix #76).
-      
-      // Simulated validation for prototype:
-      await Future.delayed(const Duration(seconds: 1));
-      
+    await NfcManager.instance.startSession(onDiscovered: (tag) async {
+      await NfcManager.instance.stopSession();
+      if (!mounted) return;
       setState(() {
-        _isVerified = true;
         _isScanning = false;
+        _message = 'Tag detected, but server-backed cryptographic verification is not configured. No cleaning log was submitted.';
       });
-
-      NfcManager.instance.stopSession();
-      
-      // Auto-navigate to camera screen on success
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Checkpoint Verified Successfully!'), backgroundColor: Colors.green),
-        );
-        // Navigator.pushReplacementNamed(context, '/camera', arguments: widget.expectedCheckpointId);
-      }
     });
   }
 
@@ -69,32 +57,32 @@ class _NfcScanScreenState extends State<NfcScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan NFC Tag')),
+      appBar: AppBar(title: const Text('Verify NFC Presence')),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _isVerified ? Icons.check_circle : Icons.nfc,
-              size: 100,
-              color: _isVerified ? Colors.green : (_isScanning ? Colors.blue : Colors.grey),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              _isVerified 
-                ? 'Presence Verified!' 
-                : (_isScanning ? 'Hold phone near the checkpoint tag...' : 'NFC Initialization Failed'),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            ValueListenableBuilder<dynamic>(
-              valueListenable: result,
-              builder: (context, value, _) => Text(
-                value != null ? 'Tag Detected' : '',
-                style: const TextStyle(color: Colors.grey),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(_isScanning ? Icons.nfc : Icons.error_outline, size: 100, color: _isScanning ? Colors.blue : Colors.orange),
+              const SizedBox(height: 20),
+              Text(
+                _isScanning ? 'Hold the phone near the checkpoint tag' : (_message ?? 'NFC verification unavailable'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              if (!_isScanning) ...[
+                ElevatedButton.icon(
+                  onPressed: _startNfcScan,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+                TextButton(onPressed: () => context.pop(), child: const Text('Cancel')),
+              ],
+              Text('Checkpoint: ${widget.expectedCheckpointId}', style: const TextStyle(color: Colors.grey)),
+            ],
+          ),
         ),
       ),
     );

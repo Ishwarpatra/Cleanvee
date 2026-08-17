@@ -45,19 +45,26 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
       .where("is_active", "==", true)
       .where("last_cleaned_timestamp", "<", thresholdTimestamp)
       .get();
+    const neverCleanedSnapshot = await db.collection("checkpoints")
+      .where("is_active", "==", true)
+      .where("last_cleaned_timestamp", "==", null)
+      .get();
+    const checkpointDocs = [...new Map(
+      [...overdueCheckpointsSnapshot.docs, ...neverCleanedSnapshot.docs].map((doc) => [doc.id, doc]),
+    ).values()];
 
-    if (overdueCheckpointsSnapshot.empty) {
+    if (checkpointDocs.length === 0) {
       console.log("[SLA Watchdog] All checkpoints are compliant. No action needed.");
       return;
     }
 
-    console.log(`[SLA Watchdog] Found ${overdueCheckpointsSnapshot.size} overdue checkpoints.`);
+    console.log(`[SLA Watchdog] Found ${checkpointDocs.length} checkpoints requiring SLA evaluation.`);
 
     // 3. Batch Processing - Collect all alerts to create
     const alertsToCreate: Array<{
       checkpointId: string;
       buildingId: string;
-      lastCleanedAt: string;
+      lastCleanedAt: string | null;
       hoursOverdue: number;
       slaThresholdHours: number; // Fix #52: per-checkpoint SLA threshold
       notifyUserIds: string[]; // Fix #66
@@ -65,7 +72,7 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
 
     // Check for existing alerts to avoid duplicates
     // We do this in a batch read to minimize queries
-    const checkpointIds = overdueCheckpointsSnapshot.docs.map(doc => doc.id);
+    const checkpointIds = checkpointDocs.map(doc => doc.id);
 
     // Get all open SLA_MISSING_CLEAN alerts for these checkpoints
     // Note: Firestore 'in' queries are limited to 10 items, so we chunk if needed
@@ -85,8 +92,26 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
       }
     }
 
+    const buildingIds = [...new Set(checkpointDocs
+      .map((doc) => doc.data().building_id)
+      .filter((buildingId): buildingId is string => typeof buildingId === 'string' && buildingId.length > 0))];
+    const managerIdsByBuilding = new Map<string, string[]>();
+    for (let i = 0; i < buildingIds.length; i += chunkSize) {
+      const chunk = buildingIds.slice(i, i + chunkSize);
+      const buildings = await db.collection("buildings")
+        .where(admin.firestore.FieldPath.documentId(), "in", chunk)
+        .get();
+      buildings.forEach((buildingDoc) => {
+        const managerIds = buildingDoc.data().manager_ids;
+        managerIdsByBuilding.set(
+          buildingDoc.id,
+          Array.isArray(managerIds) ? managerIds.filter((id): id is string => typeof id === 'string') : [],
+        );
+      });
+    }
+
     // Determine which checkpoints need new alerts
-    for (const doc of overdueCheckpointsSnapshot.docs) {
+    for (const doc of checkpointDocs) {
       const checkpointId = doc.id;
       const data = doc.data();
 
@@ -96,17 +121,36 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
         continue;
       }
 
-      const lastCleanedAt = data.last_cleaned_at || "never";
-      const lastCleanedMs = data.last_cleaned_timestamp?.toMillis() || 0;
-      const hoursOverdue = parseFloat(((now.getTime() - lastCleanedMs) / (1000 * 60 * 60)).toFixed(2));
+      const lastCleanedTimestamp = data.last_cleaned_timestamp;
+      const lastCleanedMs = typeof lastCleanedTimestamp?.toMillis === 'function'
+        ? lastCleanedTimestamp.toMillis()
+        : null;
+      let lastCleanedAt: string | null = typeof data.last_cleaned_at === 'string' ? data.last_cleaned_at : null;
+      let hoursOverdue: number;
+
+      if (typeof lastCleanedMs === 'number' && Number.isFinite(lastCleanedMs)) {
+        hoursOverdue = parseFloat(((now.getTime() - lastCleanedMs) / (1000 * 60 * 60)).toFixed(2));
+      } else {
+        const createdAtMs = typeof data.created_at?.toMillis === 'function'
+          ? data.created_at.toMillis()
+          : Date.parse(data.created_at ?? '');
+        const onboardingGraceHours = typeof data.onboarding_grace_period_hours === 'number'
+          ? data.onboarding_grace_period_hours
+          : 24;
+        if (!Number.isFinite(createdAtMs)) {
+          console.warn(`[SLA Watchdog] Skipping checkpoint ${checkpointId}: missing valid creation time.`);
+          continue;
+        }
+        hoursOverdue = parseFloat((((now.getTime() - createdAtMs) / (1000 * 60 * 60)) - onboardingGraceHours).toFixed(2));
+        if (hoursOverdue <= 0) continue;
+        lastCleanedAt = null;
+      }
       // Fix #52: use building-level SLA config if stored on checkpoint, else use default
       const slaThresholdHours: number = typeof data.sla_max_gap_hours === 'number'
         ? data.sla_max_gap_hours
         : DEFAULT_MAX_GAP_HOURS;
 
-      // Fix #66: Fetch building to get manager_ids
-      const buildingDoc = await db.collection("buildings").doc(data.building_id).get();
-      const managerIds = buildingDoc.exists ? (buildingDoc.data()?.manager_ids || []) : [];
+      const managerIds = managerIdsByBuilding.get(data.building_id) ?? [];
 
       alertsToCreate.push({
         checkpointId,
@@ -124,12 +168,14 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
     }
 
     // 4. Batch Write - Create all alerts in one network request
-    const batch = db.batch();
     const alertsRef = db.collection("alerts");
+    const batchSize = 450;
 
-    for (const alert of alertsToCreate) {
-      const newAlertRef = alertsRef.doc();
-      batch.set(newAlertRef, {
+    for (let i = 0; i < alertsToCreate.length; i += batchSize) {
+      const batch = db.batch();
+      for (const alert of alertsToCreate.slice(i, i + batchSize)) {
+        const newAlertRef = alertsRef.doc();
+        batch.set(newAlertRef, {
         building_id: alert.buildingId,
         checkpoint_id: alert.checkpointId,
         type: "SLA_MISSING_CLEAN",
@@ -144,24 +190,26 @@ export const checkSlaCompliance = onSchedule("every 15 minutes", async (event) =
         source_function: "checkSlaCompliance", // Fix #91
         last_cleaned_at: alert.lastCleanedAt,
         created_at: admin.firestore.FieldValue.serverTimestamp(),
-      });
+        });
 
-      console.log(`[SLA Watchdog] Queued alert for Checkpoint ${alert.checkpointId} (${alert.hoursOverdue}h overdue)`);
+        console.log(`[SLA Watchdog] Queued alert for Checkpoint ${alert.checkpointId} (${alert.hoursOverdue}h overdue)`);
+      }
+      await batch.commit();
     }
-
-    await batch.commit();
     console.log(`[SLA Watchdog] Successfully created ${alertsToCreate.length} new alerts.`);
 
     // 5. Optional: Update checkpoint status to reflect overdue state
-    const statusBatch = db.batch();
-    for (const alert of alertsToCreate) {
-      const checkpointRef = db.collection("checkpoints").doc(alert.checkpointId);
-      statusBatch.update(checkpointRef, {
-        current_status: "overdue",  // Fix #56: lowercase matches CheckpointStatus enum
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    for (let i = 0; i < alertsToCreate.length; i += batchSize) {
+      const statusBatch = db.batch();
+      for (const alert of alertsToCreate.slice(i, i + batchSize)) {
+        const checkpointRef = db.collection("checkpoints").doc(alert.checkpointId);
+        statusBatch.update(checkpointRef, {
+          current_status: "overdue",
+          updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      await statusBatch.commit();
     }
-    await statusBatch.commit();
     console.log("[SLA Watchdog] Updated checkpoint statuses to OVERDUE.");
 
   } catch (error) {

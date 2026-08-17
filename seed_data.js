@@ -65,11 +65,11 @@ const buildingData = {
 };
 
 async function seed() {
-  console.log("🌱 Seeding Cleanivee Database...");
+  console.log(" Seeding Cleanivee Database...");
 
   // 1. Create Building
   await db.collection("buildings").doc(BUILDING_ID).set(buildingData);
-  console.log(`✅ Building '${BUILDING_ID}' created.`);
+  console.log(` Building '${BUILDING_ID}' created.`);
 
   // 2. Create Checkpoints
   for (const cp of checkpoints) {
@@ -77,7 +77,7 @@ async function seed() {
     console.log(`   - Added Checkpoint: ${cp.location_label}`);
   }
 
-  console.log("🚀 Database Seeded! Your Dashboard is ready.");
+  console.log(" Database Seeded! Your Dashboard is ready.");
 }
 
 seed();

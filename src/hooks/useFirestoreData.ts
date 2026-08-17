@@ -35,10 +35,14 @@ const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 1000;
 const DEBOUNCE_MS = 300;
 
+function isDemoModeEnabled(): boolean {
+  return (import.meta.env as Record<string, string | undefined>).VITE_DEMO_MODE === 'true';
+}
+
 function isFirebaseConfigured(): boolean {
   return Boolean(
     typeof import.meta !== 'undefined' &&
-    (import.meta as Record<string, unknown>).env &&
+    (import.meta as unknown as Record<string, unknown>).env &&
     (import.meta.env as Record<string, string>).VITE_FIREBASE_PROJECT_ID &&
     (import.meta.env as Record<string, string>).VITE_FIREBASE_API_KEY
   );
@@ -80,7 +84,16 @@ export const useFirestoreData = (buildingId: string): FirestoreDataResult => {
       retryCount.current = 0;
 
       if (!isFirebaseConfigured()) {
-        loadMockData('Firebase not configured — showing demo data.');
+        if (isDemoModeEnabled()) {
+          loadMockData('Demo mode is explicitly enabled. Live operational actions are disabled.');
+        } else {
+          setCheckpoints([]);
+          setLogs([]);
+          setStats(null);
+          setIsUsingMockData(false);
+          setError('Live data is not configured. Enable demo mode explicitly to view sample data.');
+          setLoading(false);
+        }
         return;
       }
 
@@ -88,7 +101,7 @@ export const useFirestoreData = (buildingId: string): FirestoreDataResult => {
 
       const subscribe = async (attempt: number) => {
         try {
-          const { getFirestore, collection, query, where, orderBy, limit, onSnapshot, doc } =
+          const { getFirestore, collection, query, where, orderBy, onSnapshot, doc, Timestamp } =
             await import('firebase/firestore');
           const { getApp } = await import('firebase/app');
           const db = getFirestore(getApp());
@@ -111,14 +124,14 @@ export const useFirestoreData = (buildingId: string): FirestoreDataResult => {
             }
           );
 
-          // --- Logs listener (today's logs, paginated to 100) ---
-          const todayUTC = new Date().toISOString().slice(0, 10);
+          // --- Logs listener (today's UTC logs; daily_stats remains the totals source) ---
+          const todayStart = new Date();
+          todayStart.setUTCHours(0, 0, 0, 0);
           const logsQuery = query(
             collection(db, 'cleaning_logs'),
             where('building_id', '==', buildingId),
-            where('created_at', '>=', `${todayUTC}T00:00:00.000Z`),
-            orderBy('created_at', 'desc'),
-            limit(100)
+            where('created_at', '>=', Timestamp.fromDate(todayStart)),
+            orderBy('created_at', 'desc')
           );
           const unsubLogs = onSnapshot(
             logsQuery,
@@ -170,7 +183,12 @@ export const useFirestoreData = (buildingId: string): FirestoreDataResult => {
             if (!cancelled) subscribe(attempt + 1);
           }, delay);
         } else {
-          loadMockData(`Live data unavailable (${msg}). Showing demo data.`);
+          setCheckpoints([]);
+          setLogs([]);
+          setStats(null);
+          setIsUsingMockData(false);
+          setError(`Live data unavailable after ${MAX_RETRIES} attempts. No sample data was substituted.`);
+          setLoading(false);
         }
       };
 

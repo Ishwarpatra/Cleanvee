@@ -22,14 +22,21 @@ service firebase.storage {
              && request.resource.size < 5 * 1024 * 1024;
     }
     
+    function userAssignedToBuilding(buildingId) {
+      return isAuthenticated() && buildingId in get(/databases/(default)/documents/users/$(request.auth.uid)).data.assigned_building_ids;
+    }
+
+    function checkpointBelongsToBuilding(checkpointId, buildingId) {
+      return exists(/databases/(default)/documents/checkpoints/$(checkpointId)) &&
+        get(/databases/(default)/documents/checkpoints/$(checkpointId)).data.building_id == buildingId;
+    }
+
     match /proof_of_quality/{buildingId}/{checkpointId}/{fileName} {
-      // Anyone authenticated can read (managers need to see logs)
-      allow read: if isAuthenticated();
-      
-      // Only authenticated users can upload, and it MUST be a valid image < 5MB
-      allow create: if isAuthenticated() && isValidImage();
-      
-      // Photos are immutable (audit trail)
+      allow read: if userAssignedToBuilding(buildingId) && checkpointBelongsToBuilding(checkpointId, buildingId);
+      allow create: if userAssignedToBuilding(buildingId) &&
+        checkpointBelongsToBuilding(checkpointId, buildingId) &&
+        request.resource.metadata.uploaderId == request.auth.uid &&
+        isValidImage();
       allow update, delete: if false;
     }
     

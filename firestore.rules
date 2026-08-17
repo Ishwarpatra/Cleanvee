@@ -58,8 +58,18 @@ service cloud.firestore {
     match /buildings/{buildingId} {
       // Assigned users can read their buildings
       allow read: if isAuthenticated() && userAssignedToBuilding(buildingId);
-      // Only managers and admins can create/update buildings
-      allow create, update: if isManagerOrAdmin();
+      // Admins manage all buildings; managers may manage only buildings they are assigned to.
+      allow create: if isAdmin() || (
+        isManager() &&
+        request.resource.data.manager_ids is list &&
+        request.auth.uid in request.resource.data.manager_ids
+      );
+      allow update: if isAdmin() || (
+        isManager() &&
+        userAssignedToBuilding(buildingId) &&
+        request.resource.data.manager_ids is list &&
+        request.auth.uid in request.resource.data.manager_ids
+      );
       allow delete: if isAdmin();
     }
 
@@ -67,8 +77,14 @@ service cloud.firestore {
     match /checkpoints/{checkpointId} {
       // Any authenticated user assigned to the building can read checkpoints
       allow read: if isAuthenticated() && userAssignedToBuilding(resource.data.building_id);
-      // Only managers/admins can manage checkpoints
-      allow create, update: if isManagerOrAdmin();
+      // Only managers/admins can manage checkpoints within their assigned buildings.
+      allow create: if isAdmin() || (isManager() && userAssignedToBuilding(request.resource.data.building_id));
+      allow update: if isAdmin() || (
+        isManager() &&
+        userAssignedToBuilding(resource.data.building_id) &&
+        userAssignedToBuilding(request.resource.data.building_id) &&
+        request.resource.data.building_id == resource.data.building_id
+      );
       allow delete: if isAdmin();
     }
 
@@ -98,8 +114,10 @@ service cloud.firestore {
       // Logs are IMMUTABLE after creation — only managers can update verification_result
       allow update: if isManagerOrAdmin() &&
         userAssignedToBuilding(resource.data.building_id) &&
-        // Fix #142: Only allow updating the verification_result field, preventing proof_of_presence tampering
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verification_result', 'updated_at']);
+        request.resource.data.building_id == resource.data.building_id &&
+        request.resource.data.checkpoint_id == resource.data.checkpoint_id &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verification_result', 'updated_at']) &&
+        request.resource.data.verification_result.status in ['verified', 'rejected', 'flagged_for_review', 'appealed', 'appeal_resolved'];
       // Nobody can delete logs (audit trail)
       allow delete: if false;
     }
@@ -119,22 +137,32 @@ service cloud.firestore {
     // ---- Daily Stats collection ----
     match /daily_stats/{docId} {
       // Read-only for authenticated users assigned to the building
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && userAssignedToBuilding(resource.data.building_id);
       // Only Cloud Functions write stats
       allow write: if false;
     }
 
     // ---- App Config (settings) ----
-    match /app_config/{docId} {
-      allow read: if isAuthenticated();
-      // Only managers/admins can update global settings
-      allow write: if isManagerOrAdmin();
+    match /app_config/{buildingId} {
+      allow read: if isAdmin() || (isManager() && userAssignedToBuilding(buildingId));
+      allow create, update: if isAdmin() || (
+        isManager() &&
+        userAssignedToBuilding(buildingId) &&
+        request.resource.data.building_id == buildingId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'building_id', 'qualityThreshold', 'flagYellowAlerts', 'autoReviewLowScores',
+          'requireGps', 'allowOffline', 'photoRequired', 'maxOfflineHours',
+          'emailNotifications', 'pushNotifications', 'slaAlerts', 'digestFrequency',
+          'maxCleaningIntervalHours', 'gracePeriodMinutes', 'updatedAt'
+        ])
+      );
+      allow delete: if isAdmin();
     }
 
     // ---- SLA Events (analytics) ----
     match /sla_events/{docId} {
-      // Read-only for managers in the relevant building
-      allow read: if isManagerOrAdmin();
+      // Read-only for managers/admins in the relevant building
+      allow read: if isManagerOrAdmin() && userAssignedToBuilding(resource.data.building_id);
       // Only Cloud Functions write SLA events
       allow write: if false;
     }
@@ -144,10 +172,20 @@ service cloud.firestore {
     // Fix #67: Rate-limit occupant feedback to prevent spam
     match /occupant_feedback/{feedbackId} {
       allow create: if isAuthenticated() &&
-        // feedback must come from the authenticated user
+        request.resource.data.keys().hasOnly([
+          'checkpoint_id', 'building_id', 'type', 'details',
+          'submitted_by', 'created_at', 'source'
+        ]) &&
         request.resource.data.submitted_by == request.auth.uid &&
-        // feedback must reference a valid checkpoint field
-        request.resource.data.checkpoint_id is string;
+        request.resource.data.checkpoint_id is string &&
+        request.resource.data.building_id is string &&
+        request.resource.data.type in ['BAD_SMELL', 'DIRTY', 'SPILL', 'ISSUE', 'OTHER'] &&
+        request.resource.data.details is string &&
+        request.resource.data.details.size() <= 1000 &&
+        exists(/databases/$(database)/documents/checkpoints/$(request.resource.data.checkpoint_id)) &&
+        request.resource.data.building_id ==
+          get(/databases/$(database)/documents/checkpoints/$(request.resource.data.checkpoint_id)).data.building_id &&
+        userAssignedToBuilding(request.resource.data.building_id);
       // No updates or deletes — feedback is immutable
       allow update, delete: if false;
       allow read: if isManagerOrAdmin();

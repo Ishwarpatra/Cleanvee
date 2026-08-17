@@ -250,19 +250,19 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
                         </div>
                         <div className="p-6 space-y-4">
                             <a href="#" className="block p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
-                                <h3 className="font-medium text-blue-900 dark:text-blue-300">📚 Documentation</h3>
+                                <h3 className="font-medium text-blue-900 dark:text-blue-300"> Documentation</h3>
                                 <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">Learn how to use Cleanvee effectively</p>
                             </a>
                             <a href="#" className="block p-4 bg-purple-50 dark:bg-purple-900/30 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors">
-                                <h3 className="font-medium text-purple-900 dark:text-purple-300">🎥 Video Tutorials</h3>
+                                <h3 className="font-medium text-purple-900 dark:text-purple-300"> Video Tutorials</h3>
                                 <p className="text-sm text-purple-700 dark:text-purple-400 mt-1">Watch step-by-step guides</p>
                             </a>
                             <a href="#" className="block p-4 bg-green-50 dark:bg-green-900/30 rounded-xl hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors">
-                                <h3 className="font-medium text-green-900 dark:text-green-300">💬 Contact Support</h3>
+                                <h3 className="font-medium text-green-900 dark:text-green-300"> Contact Support</h3>
                                 <p className="text-sm text-green-700 dark:text-green-400 mt-1">Get help from our team</p>
                             </a>
                             <a href="#" className="block p-4 bg-amber-50 dark:bg-amber-900/30 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors">
-                                <h3 className="font-medium text-amber-900 dark:text-amber-300">❓ FAQs</h3>
+                                <h3 className="font-medium text-amber-900 dark:text-amber-300"> FAQs</h3>
                                 <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">Find answers to common questions</p>
                             </a>
                         </div>

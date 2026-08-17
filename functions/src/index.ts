@@ -3,6 +3,9 @@ import { beforeUserCreated } from "firebase-functions/v2/identity";
 import * as admin from "firebase-admin";
 import { checkSlaCompliance } from "./slaMonitor";
 import { streamToBigQuery, aggregateStats } from "./analytics";
+import { LogStatus } from "../../types";
+import { isValidCleaningLog, parseFeedback } from "./validation";
+export { geminiAnalysis } from "./geminiAnalysis";
 
 // Initialize Admin SDK once
 if (!admin.apps.length) {
@@ -113,16 +116,18 @@ const AlertService = {
 
     if (openAlerts.empty) return;
 
-    const batch = db.batch();
-    for (const alertDoc of openAlerts.docs) {
-      batch.update(alertDoc.ref, {
-        status: "resolved",                                   // Fix #56: lowercase
-        resolved_at: admin.firestore.FieldValue.serverTimestamp(),
-        resolved_by_log_id: resolvedByLogId,
-      });
+    const batchSize = 450;
+    for (let i = 0; i < openAlerts.docs.length; i += batchSize) {
+      const batch = db.batch();
+      for (const alertDoc of openAlerts.docs.slice(i, i + batchSize)) {
+        batch.update(alertDoc.ref, {
+          status: "resolved",
+          resolved_at: admin.firestore.FieldValue.serverTimestamp(),
+          resolved_by_log_id: resolvedByLogId,
+        });
+      }
+      await batch.commit();
     }
-
-    await batch.commit();
     console.log(`[AlertService] Resolved ${openAlerts.size} SLA_MISSING_CLEAN alerts for Checkpoint ${checkpointId}`);
   },
 };
@@ -216,7 +221,12 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
     return;
   }
 
-  const logData = snapshot.data() as CleaningLog;
+  const rawLogData = snapshot.data();
+  if (!isValidCleaningLog(rawLogData)) {
+    console.error(`[Trigger] Rejecting malformed cleaning log ${event.params.logId}`);
+    return;
+  }
+  const logData = rawLogData as CleaningLog;
   const logId = event.params.logId;
 
   console.log(`[Trigger] Processing new cleaning log: ${logId}`);
@@ -295,6 +305,7 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
       // If a cleaner gets 10 "verified" logs in a row at a specific building, trigger a manual audit
       const streakId = `${logData.building_id}_${logData.cleaner_id}`;
       const streakRef = db.collection("streaks").doc(streakId);
+      const auditAlertRef = db.collection("alerts").doc(`${streakId}_audit_${logId}`);
       
       try {
         await db.runTransaction(async (transaction) => {
@@ -312,17 +323,16 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
           if (newStreak >= 10) {
             console.log(`[Trigger] Cleaner ${logData.cleaner_id} reached 10 verified logs at Building ${logData.building_id}. Triggering SUPERVISOR_AUDIT_REQUEST.`);
 
-            await db.collection("alerts").add({
+            transaction.create(auditAlertRef, {
               building_id: logData.building_id,
               checkpoint_id: logData.checkpoint_id,
               type: "SUPERVISOR_AUDIT_REQUEST",
-              severity: "medium",   // Fix #56: lowercase
-              status: "open",       // Fix #56: lowercase
+              severity: "medium",
+              status: "open",
               message: `Cleaner streak reached 10. Manual spot check requested for ${logData.checkpoint_id}.`,
               details: {
                 cleaner_id: logData.cleaner_id,
                 streak: newStreak,
-                // Fix #61: include the log that triggered the audit for evidence
                 trigger_log_id: logId,
               },
               created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -367,7 +377,17 @@ export const onLogCreated = onDocumentCreated("cleaning_logs/{logId}", async (ev
 export const onOccupantFeedback = onDocumentCreated("occupant_feedback/{feedbackId}", async (event) => {
   const snapshot = event.data;
   if (!snapshot) return;
-  const feedback = snapshot.data();
+  const feedback = parseFeedback(snapshot.data());
+  if (!feedback) {
+    console.error(`[Feedback] Rejecting malformed feedback ${event.params.feedbackId}`);
+    return;
+  }
+
+  const checkpointDoc = await db.collection("checkpoints").doc(feedback.checkpoint_id).get();
+  if (!checkpointDoc.exists || checkpointDoc.data()?.building_id !== feedback.building_id) {
+    console.error(`[Feedback] Rejecting feedback ${event.params.feedbackId}: checkpoint/building mismatch`);
+    return;
+  }
 
   // If feedback is negative, look for the last verification to invalidate
   if (['BAD_SMELL', 'DIRTY', 'SPILL', 'ISSUE', 'OTHER'].includes(feedback.type)) {

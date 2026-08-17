@@ -113,7 +113,7 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 55, // Below threshold
-                    detected_objects: [] as any[],
+                    detected_objects: [] as DetectedObject[],
                 },
             };
 
@@ -138,7 +138,7 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 85, // Above threshold
-                    detected_objects: [] as any[],
+                    detected_objects: [] as DetectedObject[],
                 },
             };
 
@@ -154,7 +154,7 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 69, // Just below threshold
-                    detected_objects: [] as any[],
+                    detected_objects: [] as DetectedObject[],
                 },
             };
 
@@ -170,7 +170,7 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 70, // Exactly at threshold
-                    detected_objects: [] as any[],
+                    detected_objects: [] as DetectedObject[],
                 },
             };
 
@@ -259,7 +259,7 @@ describe('AlertService', () => {
                 checkpoint_id: 'cp_001',
                 proof_of_quality: {
                     overall_score: 50,
-                    detected_objects: [] as any, // Explicitly empty array for mock
+                    detected_objects: [] as DetectedObject[],
                 },
             };
 

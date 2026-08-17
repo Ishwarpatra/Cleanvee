@@ -112,30 +112,30 @@ async function main() {
         }
     };
 
-    console.log("🌱 Seeding Cleanvee Emulator Database...\n");
-    console.log("📅 Current time:", now.toISOString());
-    console.log("⏰ 5 hours ago:", fiveHoursAgo.toISOString());
+    console.log(" Seeding Cleanvee Emulator Database...\n");
+    console.log(" Current time:", now.toISOString());
+    console.log("5 hours ago:", fiveHoursAgo.toISOString());
     console.log("\n");
 
     // 1. Create Building
     await db.collection("buildings").doc(BUILDING_ID).set(buildingData);
-    console.log(`✅ Building '${buildingData.name}' created.`);
+    console.log(` Building '${buildingData.name}' created.`);
 
     // 2. Create Checkpoints
-    console.log("\n📍 Creating Checkpoints:");
+    console.log("\n Creating Checkpoints:");
     for (const cp of checkpoints) {
         const { id, ...data } = cp;
         await db.collection("checkpoints").doc(id).set(data);
         const status = cp.is_active
-            ? (cp.current_status === "OVERDUE" ? "⚠️ OVERDUE" : "✅ CLEAN")
-            : "⏸️ INACTIVE";
+            ? (cp.current_status === "OVERDUE" ? " OVERDUE" : " CLEAN")
+            : "INACTIVE";
         console.log(`   ${status} ${cp.location_label} (${id})`);
     }
 
     console.log("\n" + "=".repeat(60));
-    console.log("🚀 Database Seeded Successfully!");
+    console.log(" Database Seeded Successfully!");
     console.log("=".repeat(60));
-    console.log("\n📋 Expected SLA Monitor Behavior:");
+    console.log("\n Expected SLA Monitor Behavior:");
     console.log("   When you run checkSlaCompliance(), it should create alerts for:");
     console.log("   - room-101 (5 hours since last clean)");
     console.log("   - restroom-a (6 hours since last clean)");
@@ -143,8 +143,8 @@ async function main() {
     console.log("   - room-102 (2 hours - within SLA)");
     console.log("   - lobby-main (1 hour - within SLA)");
     console.log("   - inactive-room (is_active = false)");
-    console.log("\n🔗 Firestore UI: http://localhost:4000/firestore");
-    console.log("🔗 Functions UI: http://localhost:4000/functions\n");
+    console.log("\n Firestore UI: http://localhost:4000/firestore");
+    console.log(" Functions UI: http://localhost:4000/functions\n");
 }
 
 main().catch(console.error);

@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 import sgMail from "@sendgrid/mail";
 
 import { defineSecret, defineString } from "firebase-functions/params";
+import { claimNotificationDelivery, escapeHtml, markNotificationFailed, markNotificationSent } from "./notificationSecurity";
 
 // Fix #106: Use Secret Manager for API keys, not env vars
 const sendgridApiKey = defineSecret("SENDGRID_API_KEY");
@@ -18,9 +19,6 @@ export const onAlertCreated = onDocumentCreated({
   secrets: [sendgridApiKey],
   retry: true
 }, async (event) => {
-  // Initialize SendGrid inside the function using the injected secret
-  const apiKey = sendgridApiKey.value() || "SG.placeholder";
-  sgMail.setApiKey(apiKey);
   const snapshot = event.data;
   if (!snapshot) {
     console.log("[NotificationService] No data associated with the event.");
@@ -29,7 +27,11 @@ export const onAlertCreated = onDocumentCreated({
 
   const alertData = snapshot.data();
   const alertId = event.params.alertId;
-  const notifyUserIds: string[] = alertData.notify_user_ids || [];
+  const apiKey = sendgridApiKey.value();
+  const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true' || process.env.NODE_ENV === 'test';
+  if (!apiKey && !isEmulator) throw new Error('SENDGRID_API_KEY is not configured');
+  if (apiKey) sgMail.setApiKey(apiKey);
+  const notifyUserIds: string[] = Array.isArray(alertData.notify_user_ids) ? alertData.notify_user_ids : [];
 
   if (notifyUserIds.length === 0) {
     console.log(`[NotificationService] Alert ${alertId} has no notify_user_ids. Skipping email.`);
@@ -47,6 +49,8 @@ export const onAlertCreated = onDocumentCreated({
 
   try {
     const db = admin.firestore();
+    const deliveryId = `${alertId}:created`;
+    if (!(await claimNotificationDelivery(db, deliveryId))) return;
     
     // Fetch all user documents to get their email addresses
     // Firestore `in` query is limited to 10 items.
@@ -59,7 +63,16 @@ export const onAlertCreated = onDocumentCreated({
       
       usersSnap.forEach(doc => {
         const userData = doc.data();
-        if (userData.email) {
+        const assignedBuildings = Array.isArray(userData.assigned_building_ids) ? userData.assigned_building_ids : [];
+        const isAssigned = userData.role === 'admin' || assignedBuildings.includes(alertData.building_id);
+        const preferences = userData.notification_preferences ?? {};
+        if (
+          userData.email &&
+          userData.is_active !== false &&
+          isAssigned &&
+          preferences.email !== false &&
+          preferences.alerts !== false
+        ) {
           emails.push(userData.email);
         }
       });
@@ -67,20 +80,22 @@ export const onAlertCreated = onDocumentCreated({
 
     if (emails.length === 0) {
       console.log(`[NotificationService] No valid emails found for the ${validUserIds.length} notify_user_ids.`);
+      await markNotificationSent(db, deliveryId);
       return;
     }
 
     // Format the email content
-    const subject = `Cleanvee Alert: ${alertData.type.replace(/_/g, " ")}`;
+    const alertType = String(alertData.type ?? 'ALERT').replace(/_/g, ' ');
+    const subject = `Cleanvee Alert: ${alertType}`;
     
     let textContent = `Cleanvee has generated a new alert.\n\n`;
-    textContent += `Type: ${alertData.type}\n`;
-    textContent += `Severity: ${alertData.severity}\n`;
-    textContent += `Building ID: ${alertData.building_id}\n`;
-    textContent += `Checkpoint ID: ${alertData.checkpoint_id}\n\n`;
+    textContent += `Type: ${alertType}\n`;
+    textContent += `Severity: ${String(alertData.severity ?? '')}\n`;
+    textContent += `Building ID: ${String(alertData.building_id ?? '')}\n`;
+    textContent += `Checkpoint ID: ${String(alertData.checkpoint_id ?? '')}\n\n`;
     
     if (alertData.message) {
-      textContent += `Message: ${alertData.message}\n\n`;
+      textContent += `Message: ${String(alertData.message ?? '')}\n\n`;
     }
     
     if (alertData.details) {
@@ -100,27 +115,27 @@ export const onAlertCreated = onDocumentCreated({
         <!-- Body -->
         <div style="padding: 32px 24px;">
           <h2 style="color: #111827; margin-top: 0; margin-bottom: 16px; font-size: 20px;">
-            ${alertData.type.replace(/_/g, " ")} Detected
+            ${escapeHtml(alertType)} Detected
           </h2>
           
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
             <tr>
               <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280; width: 120px;"><strong>Severity</strong></td>
-              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #111827; text-transform: uppercase; font-weight: 600;">${alertData.severity}</td>
+              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #111827; text-transform: uppercase; font-weight: 600;">${escapeHtml(alertData.severity)}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280;"><strong>Building ID</strong></td>
-              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #111827;">${alertData.building_id}</td>
+              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #111827;">${escapeHtml(alertData.building_id)}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280;"><strong>Checkpoint ID</strong></td>
-              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #111827;">${alertData.checkpoint_id}</td>
+              <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #111827;">${escapeHtml(alertData.checkpoint_id)}</td>
             </tr>
           </table>
           
-          ${alertData.message ? `<div style="background: #f8fafc; padding: 16px; border-left: 4px solid #3b82f6; border-radius: 4px; margin-bottom: 24px; color: #334155;"><strong>Note:</strong> ${alertData.message}</div>` : ''}
+          ${alertData.message ? `<div style="background: #f8fafc; padding: 16px; border-left: 4px solid #3b82f6; border-radius: 4px; margin-bottom: 24px; color: #334155;"><strong>Note:</strong> ${escapeHtml(alertData.message)}</div>` : ''}
           
-          ${alertData.details ? `<div style="margin-bottom: 24px;"><h3 style="font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Technical Details</h3><pre style="background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5;">${JSON.stringify(alertData.details, null, 2)}</pre></div>` : ''}
+          ${alertData.details ? `<div style="margin-bottom: 24px;"><h3 style="font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Technical Details</h3><pre style="background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5;">${escapeHtml(JSON.stringify(alertData.details, null, 2))}</pre></div>` : ''}
           
           <div style="margin-top: 32px; text-align: center;">
             <a href="https://cleanvee.web.app/dashboard" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">Review in Dashboard</a>
@@ -148,8 +163,7 @@ export const onAlertCreated = onDocumentCreated({
       html: htmlContent,
     };
 
-    // If API key is placeholder, just mock it
-    if (apiKey === "SG.placeholder") {
+    if (!apiKey) {
       console.log(`[NotificationService] SENDGRID_API_KEY missing. Mocking email delivery to: ${emails.join(", ")}`);
       console.log(`[NotificationService] Email Subject: ${subject}`);
     } else {
@@ -160,14 +174,16 @@ export const onAlertCreated = onDocumentCreated({
 
     // Optionally mark the alert as "notified" in Firestore to prevent duplicate emails
     // if the function ever retries.
+    await markNotificationSent(db, deliveryId);
     await snapshot.ref.update({
       notified_at: admin.firestore.FieldValue.serverTimestamp(),
       notified_count: emails.length
     });
 
   } catch (error) {
+    const db = admin.firestore();
+    await markNotificationFailed(db, `${alertId}:created`, error);
     console.error(`[NotificationService] Error sending email for Alert ${alertId}:`, error);
-    // We throw the error so that the Cloud Function retries execution (Fix #105)
     throw error;
   }
 });
@@ -190,18 +206,22 @@ export const onAlertUpdated = onDocumentUpdated({
 
   // Only trigger if status changed to resolved
   if (beforeData.status !== "resolved" && afterData.status === "resolved") {
-    const notifyUserIds: string[] = afterData.notify_user_ids || [];
+    const notifyUserIds: string[] = Array.isArray(afterData.notify_user_ids) ? afterData.notify_user_ids : [];
     
     if (notifyUserIds.length === 0) return;
 
     const validUserIds = [...new Set(notifyUserIds)].filter(id => typeof id === "string" && id.length > 0);
     if (validUserIds.length === 0) return;
 
-    const apiKey = sendgridApiKey.value() || "SG.placeholder";
-    sgMail.setApiKey(apiKey);
+    const apiKey = sendgridApiKey.value();
+    const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true' || process.env.NODE_ENV === 'test';
+    if (!apiKey && !isEmulator) throw new Error('SENDGRID_API_KEY is not configured');
+    if (apiKey) sgMail.setApiKey(apiKey);
 
     try {
       const db = admin.firestore();
+      const deliveryId = `${alertId}:resolved`;
+      if (!(await claimNotificationDelivery(db, deliveryId))) return;
       const emails: string[] = [];
       const chunkSize = 10;
       
@@ -209,19 +229,29 @@ export const onAlertUpdated = onDocumentUpdated({
         const chunk = validUserIds.slice(i, i + chunkSize);
         const usersSnap = await db.collection("users").where("uid", "in", chunk).get();
         usersSnap.forEach(doc => {
-          if (doc.data().email) emails.push(doc.data().email);
+          const userData = doc.data();
+          const assignedBuildings = Array.isArray(userData.assigned_building_ids) ? userData.assigned_building_ids : [];
+          const isAssigned = userData.role === 'admin' || assignedBuildings.includes(afterData.building_id);
+          const preferences = userData.notification_preferences ?? {};
+          if (userData.email && userData.is_active !== false && isAssigned && preferences.email !== false && preferences.alerts !== false) {
+            emails.push(userData.email);
+          }
         });
       }
 
-      if (emails.length === 0) return;
+      if (emails.length === 0) {
+        await markNotificationSent(db, deliveryId);
+        return;
+      }
 
-      const subject = `✅ RESOLVED: Cleanvee Alert: ${afterData.type.replace(/_/g, " ")}`;
-      const textContent = `The following alert has been marked as RESOLVED.\n\nType: ${afterData.type}\nBuilding ID: ${afterData.building_id}\nCheckpoint ID: ${afterData.checkpoint_id}\nResolved At: ${afterData.resolved_at || new Date().toISOString()}`;
+      const alertType = String(afterData.type ?? 'ALERT').replace(/_/g, ' ');
+      const subject = `RESOLVED: Cleanvee Alert: ${alertType}`;
+      const textContent = `The following alert has been marked as RESOLVED.\n\nType: ${alertType}\nBuilding ID: ${String(afterData.building_id ?? '')}\nCheckpoint ID: ${String(afterData.checkpoint_id ?? '')}\nResolved At: ${String(afterData.resolved_at || new Date().toISOString())}`;
       
       const htmlContent = `
         <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           <div style="background-color: #10b981; padding: 24px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px;">✓ Alert Resolved</h1>
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px;"> Alert Resolved</h1>
           </div>
           
           <div style="padding: 32px 24px;">
@@ -230,15 +260,15 @@ export const onAlertUpdated = onDocumentUpdated({
             <table style="width: 100%; border-collapse: collapse; margin-top: 24px; background-color: #f8fafc; border-radius: 6px; overflow: hidden;">
               <tr>
                 <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #64748b; width: 120px;"><strong>Type</strong></td>
-                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 500;">${afterData.type.replace(/_/g, " ")}</td>
+                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 500;">${escapeHtml(alertType)}</td>
               </tr>
               <tr>
                 <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Building ID</strong></td>
-                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${afterData.building_id}</td>
+                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${escapeHtml(afterData.building_id)}</td>
               </tr>
               <tr>
                 <td style="padding: 12px 16px; color: #64748b;"><strong>Checkpoint ID</strong></td>
-                <td style="padding: 12px 16px; color: #0f172a;">${afterData.checkpoint_id}</td>
+                <td style="padding: 12px 16px; color: #0f172a;">${escapeHtml(afterData.checkpoint_id)}</td>
               </tr>
             </table>
           </div>
@@ -260,15 +290,16 @@ export const onAlertUpdated = onDocumentUpdated({
         html: htmlContent,
       };
 
-      if (apiKey === "SG.placeholder") {
+      if (!apiKey) {
         console.log(`[NotificationService] SENDGRID_API_KEY missing. Mocking RESOLUTION email to: ${emails.join(", ")}`);
       } else {
         await sgMail.send(msg);
         console.log(`[NotificationService] Dispatched RESOLUTION emails for Alert ${alertId}.`);
       }
+      await markNotificationSent(db, deliveryId);
     } catch (error) {
+      await markNotificationFailed(admin.firestore(), `${alertId}:resolved`, error);
       console.error(`[NotificationService] Error sending resolution email for Alert ${alertId}:`, error);
-      // We throw the error so that the Cloud Function retries execution (Fix #105)
       throw error;
     }
   }

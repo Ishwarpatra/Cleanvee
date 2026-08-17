@@ -1,94 +1,126 @@
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { BigQuery } from "@google-cloud/bigquery";
-import * as admin from "firebase-admin";
+import { BigQuery } from '@google-cloud/bigquery';
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import * as admin from 'firebase-admin';
 
 const bigquery = new BigQuery();
-const DATASET_ID = "cleanvee_analytics";
-const TABLE_ID = "cleaning_logs";
+const DATASET_ID = 'cleanvee_analytics';
+const TABLE_ID = 'cleaning_logs';
 
-// Initialize Admin SDK if not already done
-if (admin.apps.length === 0) {
-  admin.initializeApp();
-}
+if (admin.apps.length === 0) admin.initializeApp();
 const db = admin.firestore();
 
-/**
- * Aggregates cleaning log stats daily to reduce Firestore read costs on the dashboard.
- * Instead of reading all logs to calculate metrics, the dashboard can read one summary document.
- */
-export const aggregateStats = onDocumentCreated("cleaning_logs/{logId}", async (event) => {
-  const snapshot = event.data;
-  if (!snapshot) return;
+type LogData = Record<string, any>;
 
-  const data = snapshot.data();
-  const buildingId = data.building_id || "unknown_building";
-  // Use the log's creation date for the stats bucket
-  const date = new Date(data.created_at || new Date().toISOString());
-  const todayDateString = date.toISOString().split('T')[0]; // YYYY-MM-DD
+function toDate(value: unknown): Date | null {
+  if (value && typeof value === 'object' && 'toDate' in value && typeof (value as { toDate?: unknown }).toDate === 'function') {
+    const date = (value as { toDate: () => Date }).toDate();
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value === 'string' || value instanceof Date) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  return null;
+}
 
-  // Use a composite ID to keep it flat and easy to query/listen
-  const statsDocId = `${buildingId}_${todayDateString}`;
-  const statsRef = db.doc(`stats_daily/${statsDocId}`);
+function contribution(data: LogData | undefined) {
+  if (!data) return null;
+  const date = toDate(data.created_at);
+  const buildingId = typeof data.building_id === 'string' ? data.building_id : null;
+  if (!date || !buildingId) return null;
+  const score = typeof data.proof_of_quality?.overall_score === 'number' && Number.isFinite(data.proof_of_quality.overall_score)
+    ? data.proof_of_quality.overall_score
+    : null;
+  return {
+    buildingId,
+    date: date.toISOString().slice(0, 10),
+    verified: data.verification_result?.status === 'verified',
+    score,
+  };
+}
 
-  const isVerified = data.verification_result?.status === 'verified';
-  const score = data.proof_of_quality?.overall_score || 0;
+export const aggregateStats = onDocumentWritten({ document: 'cleaning_logs/{logId}', retry: true }, async (event) => {
+  const beforeData = event.data?.before.exists ? event.data.before.data() : undefined;
+  const afterData = event.data?.after.exists ? event.data.after.data() : undefined;
+  const before = contribution(beforeData);
+  const after = contribution(afterData);
+  if (!before && !after) return;
 
-  try {
-    await statsRef.set({
-      building_id: buildingId,
-      date: todayDateString,
-      total_logs: admin.firestore.FieldValue.increment(1),
-      verified_count: isVerified ? admin.firestore.FieldValue.increment(1) : admin.firestore.FieldValue.increment(0),
-      avg_score_sum: admin.firestore.FieldValue.increment(score),
-      last_updated: admin.firestore.FieldValue.serverTimestamp()
+  // Cleaning-log building/date fields are immutable; if malformed data attempts to move a log,
+  // leave the existing bucket untouched and surface the event for investigation.
+  if (before && after && (before.buildingId !== after.buildingId || before.date !== after.date)) {
+    throw new Error(`Immutable analytics dimensions changed for ${event.params.logId}`);
+  }
+  const current = after ?? before;
+  if (!current) return;
+
+  const statsRef = db.doc(`daily_stats/${current.buildingId}_${current.date}`);
+  const contributionRef = statsRef.collection('log_contributions').doc(event.params.logId);
+
+  await db.runTransaction(async (transaction) => {
+    const contributionSnapshot = await transaction.get(contributionRef);
+    const statsSnapshot = await transaction.get(statsRef);
+    const previous = contributionSnapshot.exists ? contributionSnapshot.data() : undefined;
+
+    const next = after ? {
+      verified: after.verified,
+      score: after.score,
+    } : null;
+    if (previous && JSON.stringify(previous) === JSON.stringify(next)) return;
+
+    const delta = (value: number | null | undefined) => value == null ? 0 : value;
+    const verifiedDelta = delta(next?.verified ? 1 : 0) - delta(previous?.verified ? 1 : 0);
+    const scoreDelta = delta(next?.score) - delta(previous?.score);
+    const scoreCountDelta = (next?.score == null ? 0 : 1) - (previous?.score == null ? 0 : 1);
+    const totalDelta = (next ? 1 : 0) - (previous ? 1 : 0);
+
+    transaction.set(statsRef, {
+      building_id: current.buildingId,
+      date: current.date,
+      total_logs: admin.firestore.FieldValue.increment(totalDelta),
+      verified_count: admin.firestore.FieldValue.increment(verifiedDelta),
+      score_sum: admin.firestore.FieldValue.increment(scoreDelta),
+      score_count: admin.firestore.FieldValue.increment(scoreCountDelta),
+      last_updated: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
-    console.log(`[aggregateStats] Updated stats for ${buildingId} on ${todayDateString}`);
-  } catch (error) {
-    console.error(`[aggregateStats] Error updating stats for ${buildingId}:`, error);
-  }
+    if (next) transaction.set(contributionRef, next);
+    else transaction.delete(contributionRef);
+  });
 });
 
-export const streamToBigQuery = onDocumentCreated("cleaning_logs/{logId}", async (event) => {
-  const snapshot = event.data;
-  if (!snapshot) return;
-
+export const streamToBigQuery = onDocumentWritten({ document: 'cleaning_logs/{logId}', retry: true }, async (event) => {
+  const snapshot = event.data?.after;
+  if (!snapshot?.exists) return;
   const data = snapshot.data();
   const logId = event.params.logId;
+  const timestamp = toDate(data.created_at);
+  if (!timestamp) throw new Error(`Invalid created_at for analytics log ${logId}`);
 
-  // Flatten the data for SQL (BigQuery prefers flat schemas over nested JSON)
   const row = {
     log_id: logId,
     building_id: data.building_id,
     checkpoint_id: data.checkpoint_id,
-    cleaner_id: data.cleaner_id,
-    timestamp: data.created_at, // Ensure this is ISO string or Timestamp
-
-    // Quality Metrics
-    quality_score: data.proof_of_quality?.overall_score || null,
+    timestamp: timestamp.toISOString(),
+    quality_score: typeof data.proof_of_quality?.overall_score === 'number' ? data.proof_of_quality.overall_score : null,
     ai_model: data.proof_of_quality?.ai_model_used || null,
-    has_hazards: (data.proof_of_quality?.detected_objects?.length || 0) > 0,
-
-    // Presence Metrics
-    nfc_hash: data.proof_of_presence?.nfc_payload_hash || null,
-    lat: data.proof_of_presence?.geo_location?.latitude || null,
-    lng: data.proof_of_presence?.geo_location?.longitude || null,
-
-    // Status
-    status: data.verification_result?.status || "unknown",
-    ingested_at: bigquery.datetime(new Date().toISOString())
+    has_hazards: Array.isArray(data.proof_of_quality?.detected_objects) && data.proof_of_quality.detected_objects.length > 0,
+    has_location: Boolean(data.proof_of_presence?.geo_location),
+    status: data.verification_result?.status || 'unknown',
+    ingested_at: new Date().toISOString(),
   };
 
   try {
-    // Insert into BigQuery
-    await bigquery
-      .dataset(DATASET_ID)
-      .table(TABLE_ID)
-      .insert([row]);
-
-    console.log(`Streamed Log ${logId} to BigQuery`);
+    await bigquery.dataset(DATASET_ID).table(TABLE_ID).insert([{ insertId: `${logId}:${row.status}`, json: row }]);
   } catch (error) {
-    console.error("BigQuery Insert Error:", error);
-    // Note: In production, you might want to write failed inserts to a 'dead-letter' Firestore collection
+    await db.collection('analytics_dead_letters').doc(`${logId}:${row.status}`).set({
+      log_id: logId,
+      status: row.status,
+      row,
+      attempts: admin.firestore.FieldValue.increment(1),
+      last_error_code: error instanceof Error ? error.name : 'unknown_error',
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    throw error;
   }
 });

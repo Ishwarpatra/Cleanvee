@@ -17,6 +17,11 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Generated build, coverage, and emulator artifacts
+functions/lib/
+functions/coverage/
+.firebase/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

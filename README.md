@@ -6,7 +6,7 @@
 
 ---
 
-## 🎯 Overview
+##  Overview
 
 Cleanvee transforms facility management with:
 
@@ -27,7 +27,7 @@ Cleanvee transforms facility management with:
 
 ---
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
@@ -41,7 +41,7 @@ Cleanvee transforms facility management with:
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 
@@ -78,7 +78,7 @@ flutter run -d ios     # iOS
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ### System Overview
 
@@ -140,7 +140,7 @@ Firebase Auth ──► useAuth hook ──► Permission helpers ──► UI v
 
 ---
 
-## ✨ Features
+##  Features
 
 ### Web Dashboard
 
@@ -176,7 +176,7 @@ Firebase Auth ──► useAuth hook ──► Permission helpers ──► UI v
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 Cleanvee/
@@ -240,7 +240,7 @@ Cleanvee/
 
 ---
 
-## 🛠️ Setup Instructions
+##  Setup Instructions
 
 ### 1. Web App Installation
 
@@ -271,11 +271,11 @@ firebase login
 firebase init
 
 # Select features:
-# ✓ Firestore
-# ✓ Functions
-# ✓ Storage
-# ✓ Hosting
-# ✓ Emulators
+#  Firestore
+#  Functions
+#  Storage
+#  Hosting
+#  Emulators
 
 # Deploy Firestore security rules
 firebase deploy --only firestore:rules
@@ -298,8 +298,8 @@ VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 VITE_FIREBASE_APP_ID=your-app-id
 
-# Gemini AI (optional)
-VITE_GEMINI_API_KEY=your-gemini-key
+# Gemini AI (optional; backend only)
+# VITE_GEMINI_FUNCTION_URL=https://REGION-PROJECT_ID.cloudfunctions.net/geminiAnalysis
 ```
 
 ### 4. Mobile App Installation
@@ -338,7 +338,7 @@ firebase deploy --only firestore:rules
 
 ---
 
-## 👨‍💻 Development
+##  Development
 
 ### Running Tests
 
@@ -383,7 +383,7 @@ npm run format
 
 ---
 
-## 🚀 Deployment
+##  Deployment
 
 ### GitHub Actions CI/CD
 
@@ -404,7 +404,7 @@ The project includes automated CI/CD via `.github/workflows/ci-cd.yml`:
 | `VITE_FIREBASE_STORAGE_BUCKET` | Firebase storage bucket |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
 | `VITE_FIREBASE_APP_ID` | Firebase app ID |
-| `VITE_GEMINI_API_KEY` | Google Gemini API key |
+| `VITE_GEMINI_FUNCTION_URL` | Optional authenticated backend endpoint for Gemini analysis; the provider key remains server-side |
 | `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON |
 
 ### Manual Deployment
@@ -422,7 +422,7 @@ firebase functions:log
 
 ---
 
-## 🔐 Security
+##  Security
 
 ### Authentication
 
@@ -439,12 +439,24 @@ firebase functions:log
 
 ---
 
-## 🤝 Contributing
+##  Current Implementation Notes
+
+The web client reads daily aggregates from the canonical `daily_stats/{buildingId}_{date}` collection. Cloud Functions update those aggregates on cleaning-log creates, updates, and deletes, and persist failed BigQuery deliveries in the `analytics_dead_letters` collection before retrying.
+
+Gemini analysis is backend-only. The browser must use `VITE_GEMINI_FUNCTION_URL` to call the authenticated `geminiAnalysis` HTTPS Function; `GEMINI_API_KEY` belongs in Firebase Secret Manager and must never be placed in a `VITE_` variable or committed environment file. Configure `APP_ORIGIN` and, if needed, `GEMINI_MODEL` for the Function deployment. Any key that was previously exposed in a browser build must be revoked and rotated.
+
+Jira and ServiceNow connectors fail closed when not configured. They use bounded requests, stable correlation identifiers, and user-safe provider error codes rather than successful mock tickets. External integrations must be invoked only after server-side tenant and alert authorization has been established.
+
+Before release, run `npm run build`, `cd functions && npm run build`, and `cd functions && npm test -- --runInBand`. Firebase Emulator Suite tests for Firestore/Storage rules and aggregate delivery remain required CI work.
+
+---
+
+##  Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more details.
 
 ---
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
