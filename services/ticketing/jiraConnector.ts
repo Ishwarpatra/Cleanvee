@@ -26,7 +26,8 @@ const PRIORITY_TO_JIRA: Record<TicketPriority, string> = {
 const ALERT_TYPE_TO_ISSUE_TYPE: Record<AlertType, string> = {
     [AlertType.SAFETY_HAZARD]: 'Bug',
     [AlertType.QUALITY_FAILURE]: 'Task',
-    [AlertType.SLA_BREACH]: 'Task'
+    [AlertType.SLA_MISSING_CLEAN]: 'Task',
+    [AlertType.SLA_BREACH_RECOVERED]: 'Task'
 };
 
 export class JiraConnector implements TicketingConnector {
@@ -47,7 +48,7 @@ export class JiraConnector implements TicketingConnector {
         this.mockMode = !this.config.host || !this.config.email || !this.config.apiToken;
 
         if (this.mockMode) {
-            console.log('[Jira] Running in MOCK mode - configure JIRA_* env vars for real integration');
+            console.warn('[Jira] Integration is not configured; ticket creation will fail closed.');
         }
     }
 
@@ -65,11 +66,11 @@ export class JiraConnector implements TicketingConnector {
     async createTicket(request: CreateTicketRequest): Promise<TicketResponse> {
         const issue = this.buildIssue(request);
 
-        if (this.mockMode) {
-            return this.mockCreateIssue(issue, request);
+        if (this.mockMode || !this.config.enabled) {
+            return { success: false, error: 'integration_not_configured', externalSystem: 'jira' };
         }
 
-        return this.realCreateIssue(issue);
+        return this.realCreateIssue(issue, request.metadata.correlationId);
     }
 
     /**
@@ -141,7 +142,7 @@ h3. Cleanvee Alert Details
     /**
      * Real Jira API call (Jira Cloud)
      */
-    private async realCreateIssue(issue: JiraIssue): Promise<TicketResponse> {
+    private async realCreateIssue(issue: JiraIssue, correlationId?: string): Promise<TicketResponse> {
         const url = `https://${this.config.host}/rest/api/3/issue`;
 
         try {
@@ -150,17 +151,15 @@ h3. Cleanvee Alert Details
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'Authorization': 'Basic ' + btoa(`${this.config.email}:${this.config.apiToken}`)
+                    'Authorization': 'Basic ' + btoa(`${this.config.email}:${this.config.apiToken}`),
+                    ...(correlationId ? { 'Idempotency-Key': correlationId } : {})
                 },
+                signal: AbortSignal.timeout(10000),
                 body: JSON.stringify(issue)
             });
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                const errorMsg = errorData.errors
-                    ? Object.values(errorData.errors).join(', ')
-                    : `HTTP ${response.status}`;
-                throw new Error(`Jira API error: ${errorMsg}`);
+                throw new Error(`Jira provider returned HTTP ${response.status}`);
             }
 
             const data = await response.json();
@@ -175,7 +174,7 @@ h3. Cleanvee Alert Details
             console.error('[Jira] Error creating issue:', error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
+                error: 'provider_unavailable',
                 externalSystem: 'jira'
             };
         }

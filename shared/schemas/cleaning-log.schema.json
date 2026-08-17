@@ -4,6 +4,7 @@
     "title": "CleaningLog",
     "description": "A cleaning log entry representing a verified cleaning action",
     "type": "object",
+    "additionalProperties": false,
     "required": [
         "id",
         "cleaner_id",

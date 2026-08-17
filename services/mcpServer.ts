@@ -64,7 +64,8 @@ export async function mcpCreateServiceNowTicket(
             checkpointId,
             location,
             detectedIssues,
-            score
+            score,
+            correlationId: alertId
         }
     };
 
@@ -101,7 +102,8 @@ export async function mcpCreateJiraTicket(
             checkpointId,
             location,
             detectedIssues,
-            score
+            score,
+            correlationId: alertId
         }
     };
 
@@ -141,7 +143,8 @@ export async function mcpCreateTicket(
             checkpointId,
             location,
             detectedIssues,
-            score
+            score,
+            correlationId: alertId
         }
     };
 
@@ -154,10 +157,8 @@ export async function mcpCreateTicket(
         results.push(await jira.createTicket(request));
     }
 
-    // If nothing is configured, use mock mode on ServiceNow
     if (results.length === 0) {
-        console.log('[MCP] No ticketing system configured, using ServiceNow mock');
-        results.push(await serviceNow.createTicket(request));
+        console.warn('[MCP] No ticketing system is configured; no external ticket was created.');
     }
 
     return results;
@@ -298,7 +299,7 @@ export function getMCPToolDefinitions(): MCPToolDefinition[] {
  */
 export function logMCPInvocation(
     toolName: string,
-    params: Record<string, any>,
+    params: Record<string, unknown>,
     result: TicketResponse | { success: boolean } | undefined
 ): void {
     console.log(`[MCP Audit] Tool: ${toolName}`, {

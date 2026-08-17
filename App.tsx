@@ -214,9 +214,9 @@ function App() {
                 <div>
                   <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 tracking-wide">Verification Status</h4>
                   <div className={`p-3 rounded-xl border text-sm font-medium ${selectedLog.verification_result.status === 'verified' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300' : selectedLog.verification_result.status === 'flagged_for_review' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'}`}>
-                    {selectedLog.verification_result.status === 'verified' && '✓ Verified'}
-                    {selectedLog.verification_result.status === 'flagged_for_review' && '⚠ Flagged for Review'}
-                    {selectedLog.verification_result.status === 'rejected' && '✗ Rejected'}
+                    {selectedLog.verification_result.status === 'verified' && ' Verified'}
+                    {selectedLog.verification_result.status === 'flagged_for_review' && ' Flagged for Review'}
+                    {selectedLog.verification_result.status === 'rejected' && ' Rejected'}
                   </div>
                   {selectedLog.verification_result.rejection_reason && (
                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">Reason: {selectedLog.verification_result.rejection_reason}</p>

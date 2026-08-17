@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Shield, Send, AlertTriangle, Wind, Droplets, Trash2, CheckCircle2 } from 'lucide-react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -16,6 +17,7 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const OccupantReportForm: React.FC = () => {
     const [reportType, setReportType] = useState<string | null>(null);
@@ -37,6 +39,12 @@ const OccupantReportForm: React.FC = () => {
         e.preventDefault();
         if (!reportType) return;
 
+        const submittedBy = auth.currentUser?.uid;
+        if (!submittedBy || details.length > 1000) {
+            setStatus('error');
+            return;
+        }
+
         setStatus('submitting');
         try {
             await addDoc(collection(db, 'occupant_feedback'), {
@@ -45,6 +53,7 @@ const OccupantReportForm: React.FC = () => {
                 type: reportType,
                 details: details,
                 created_at: serverTimestamp(),
+                submitted_by: submittedBy,
                 source: 'QR_CODE_SCAN'
             });
             setStatus('success');

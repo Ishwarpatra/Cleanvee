@@ -31,8 +31,8 @@ class CleaningLog {
       'id': id,
       'checkpoint_id': checkpointId,
       'building_id': buildingId,
-      'worker_id': workerId,
-      'timestamp': timestamp.toIso8601String(),
+      'cleaner_id': workerId,
+      'created_at': Timestamp.fromDate(timestamp.toUtc()),
       'status': status,
       'photo_url': photoUrl,
       'verification_result': verificationResult,
@@ -45,14 +45,21 @@ class CleaningLog {
       id: map['id'] ?? '',
       checkpointId: map['checkpoint_id'] ?? '',
       buildingId: map['building_id'] ?? '',
-      workerId: map['worker_id'] ?? '',
-      timestamp: DateTime.parse(map['timestamp'] ?? DateTime.now().toIso8601String()),
+      workerId: map['cleaner_id'] ?? map['worker_id'] ?? '',
+      timestamp: _readTimestamp(map['created_at'] ?? map['timestamp']),
       status: map['status'] ?? 'pending',
       photoUrl: map['photo_url'],
       verificationResult: map['verification_result'],
       synced: map['synced'] ?? false,
     );
   }
+}
+
+DateTime _readTimestamp(dynamic value) {
+  if (value is Timestamp) return value.toDate().toUtc();
+  if (value is DateTime) return value.toUtc();
+  if (value is String) return DateTime.tryParse(value)?.toUtc() ?? DateTime.now().toUtc();
+  return DateTime.now().toUtc();
 }
 
 class CleaningLogProvider extends ChangeNotifier {
@@ -103,7 +110,7 @@ class CleaningLogProvider extends ChangeNotifier {
         final snapshot = await _firestore
             .collection('cleaning_logs')
             .where('building_id', isEqualTo: buildingId)
-            .orderBy('timestamp', descending: true)
+            .orderBy('created_at', descending: true)
             .limit(100)
             .get();
 
@@ -138,8 +145,8 @@ class CleaningLogProvider extends ChangeNotifier {
 
       if (_isOnline) {
         // Submit directly to Firestore
-        await _firestore.collection('cleaning_logs').doc(log.id).set(logData);
-        logData['synced'] = true;
+        await _firestore.collection('cleaning_logs').doc(log.id).set(log.toMap(), SetOptions(merge: false));
+        logMap['synced'] = true;
       } else {
         // Store offline
         logData['synced'] = false;
@@ -171,7 +178,7 @@ class CleaningLogProvider extends ChangeNotifier {
 
       for (final logMap in unsyncedLogs) {
         final log = CleaningLog.fromMap(Map<String, dynamic>.from(logMap));
-        await _firestore.collection('cleaning_logs').doc(log.id).set(log.toMap());
+        await _firestore.collection('cleaning_logs').doc(log.id).set(log.toMap(), SetOptions(merge: false));
         logMap['synced'] = true;
         await box.put(log.id, logMap);
       }

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { mcpGetCleaningLogsForAI } from './mcpServer';
-import { CleaningLog } from '../types';
+import { CleaningLog, LogStatus } from '../types';
 
 describe('mcpGetCleaningLogsForAI', () => {
   it('should strip PII (cleaner_id) from cleaning logs before passing to Gemini', () => {
@@ -23,7 +23,7 @@ describe('mcpGetCleaningLogsForAI', () => {
           detected_objects: []
         },
         verification_result: {
-          status: 'verified' as any
+          status: LogStatus.VERIFIED
         }
       }
     ];

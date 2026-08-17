@@ -44,7 +44,7 @@ export class ServiceNowConnector implements TicketingConnector {
         this.mockMode = !this.config.instance || !this.config.username || !this.config.password;
 
         if (this.mockMode) {
-            console.log('[ServiceNow] Running in MOCK mode - configure SERVICENOW_* env vars for real integration');
+            console.warn('[ServiceNow] Integration is not configured; ticket creation will fail closed.');
         }
     }
 
@@ -62,11 +62,11 @@ export class ServiceNowConnector implements TicketingConnector {
     async createTicket(request: CreateTicketRequest): Promise<TicketResponse> {
         const incident = this.buildIncident(request);
 
-        if (this.mockMode) {
-            return this.mockCreateIncident(incident, request);
+        if (this.mockMode || !this.config.enabled) {
+            return { success: false, error: 'integration_not_configured', externalSystem: 'servicenow' };
         }
 
-        return this.realCreateIncident(incident);
+        return this.realCreateIncident(incident, request.metadata.correlationId);
     }
 
     /**
@@ -123,7 +123,7 @@ Alert Reference: ${request.metadata.alertId}`,
     /**
      * Real ServiceNow API call
      */
-    private async realCreateIncident(incident: ServiceNowIncident): Promise<TicketResponse> {
+    private async realCreateIncident(incident: ServiceNowIncident, correlationId?: string): Promise<TicketResponse> {
         const url = `https://${this.config.instance}/api/now/table/incident`;
 
         try {
@@ -132,14 +132,15 @@ Alert Reference: ${request.metadata.alertId}`,
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'Authorization': 'Basic ' + btoa(`${this.config.username}:${this.config.password}`)
+                    'Authorization': 'Basic ' + btoa(`${this.config.username}:${this.config.password}`),
+                    ...(correlationId ? { 'Idempotency-Key': correlationId } : {})
                 },
+                signal: AbortSignal.timeout(10000),
                 body: JSON.stringify(incident)
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`ServiceNow API error: ${response.status} - ${errorText}`);
+                throw new Error(`ServiceNow provider returned HTTP ${response.status}`);
             }
 
             const data = await response.json();
@@ -154,7 +155,7 @@ Alert Reference: ${request.metadata.alertId}`,
             console.error('[ServiceNow] Error creating incident:', error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
+                error: 'provider_unavailable',
                 externalSystem: 'servicenow'
             };
         }

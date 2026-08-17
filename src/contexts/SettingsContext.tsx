@@ -134,10 +134,18 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (firebaseConfigured) {
         const { getFirestore, doc, setDoc, getDoc } = await import('firebase/firestore');
         const { getApp } = await import('firebase/app');
-        const db = getFirestore(getApp());
+        const { getAuth } = await import('firebase/auth');
+        const app = getApp();
+        const db = getFirestore(app);
+        const user = getAuth(app).currentUser;
+        if (!user) throw new Error('Sign in before saving settings');
 
-        // Fetch current Firestore settings to check for conflicts
-        const docRef = doc(db, 'app_config', 'settings');
+        const profile = await getDoc(doc(db, 'users', user.uid));
+        const assignedBuildingIds = profile.data()?.assigned_building_ids;
+        const buildingId = Array.isArray(assignedBuildingIds) ? assignedBuildingIds[0] : undefined;
+        if (!buildingId) throw new Error('No assigned building is available for settings');
+
+        const docRef = doc(db, 'app_config', buildingId);
         const docSnap = await getDoc(docRef);
 
         let firestoreSettings: AppSettings | null = null;
@@ -163,19 +171,16 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
 
         // Local is newer or equal, write to Firestore
-        await setDoc(docRef, toSave, { merge: true });
+        await setDoc(docRef, { ...toSave, building_id: buildingId }, { merge: true });
       }
 
-      // Always persist to localStorage as fallback
       saveToStorage(toSave);
       setSettings(toSave);
       setSavedSettings(toSave);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error saving settings';
-      setSaveError(`Settings saved locally. Cloud sync failed: ${msg}`);
-      // Still update local state even if cloud fails
+      setSaveError(`Cloud sync failed; changes remain a local draft: ${msg}`);
       saveToStorage(toSave);
-      setSavedSettings(toSave);
     } finally {
       setIsSaving(false);
     }

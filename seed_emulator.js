@@ -182,40 +182,40 @@ const lowScoreLog = {
 };
 
 async function seed() {
-    console.log("🌱 Seeding Cleanvee Emulator Database...\n");
-    console.log("📅 Current time:", now.toISOString());
-    console.log("⏰ 5 hours ago:", fiveHoursAgo.toISOString());
+    console.log(" Seeding Cleanvee Emulator Database...\n");
+    console.log(" Current time:", now.toISOString());
+    console.log("5 hours ago:", fiveHoursAgo.toISOString());
     console.log("\n");
 
     // 1. Create Building
     await db.collection("buildings").doc(BUILDING_ID).set(buildingData);
-    console.log(`✅ Building '${buildingData.name}' created.`);
+    console.log(` Building '${buildingData.name}' created.`);
 
     // 2. Create Checkpoints
-    console.log("\n📍 Creating Checkpoints:");
+    console.log("\n Creating Checkpoints:");
     for (const cp of checkpoints) {
         await db.collection("checkpoints").doc(cp.id).set(cp);
         const status = cp.is_active
-            ? (cp.current_status === "OVERDUE" ? "⚠️ OVERDUE" : "✅ CLEAN")
-            : "⏸️ INACTIVE";
+            ? (cp.current_status === "OVERDUE" ? " OVERDUE" : " CLEAN")
+            : "INACTIVE";
         console.log(`   ${status} ${cp.location_label} (${cp.id})`);
     }
 
     // 3. Create sample cleaning logs (optional - uncomment to test triggers)
-    console.log("\n📝 Sample Cleaning Logs:");
+    console.log("\n Sample Cleaning Logs:");
     console.log("   To test the trigger, create a log in the Firestore UI at localhost:4000");
     console.log("   or run: firebase functions:shell and call onLogCreated()");
 
     // Uncommenting these will trigger the functions if they're running
     // await db.collection("cleaning_logs").doc(sampleCleaningLog.id).set(sampleCleaningLog);
-    // console.log(`   ✅ Created good log: ${sampleCleaningLog.id}`);
+    // console.log(`    Created good log: ${sampleCleaningLog.id}`);
     // await db.collection("cleaning_logs").doc(lowScoreLog.id).set(lowScoreLog);
-    // console.log(`   ⚠️ Created low-score log: ${lowScoreLog.id}`);
+    // console.log(`    Created low-score log: ${lowScoreLog.id}`);
 
     console.log("\n" + "=".repeat(60));
-    console.log("🚀 Database Seeded Successfully!");
+    console.log(" Database Seeded Successfully!");
     console.log("=".repeat(60));
-    console.log("\n📋 Expected SLA Monitor Behavior:");
+    console.log("\n Expected SLA Monitor Behavior:");
     console.log("   When you run checkSlaCompliance(), it should create alerts for:");
     console.log("   - room-101 (5 hours since last clean)");
     console.log("   - restroom-a (6 hours since last clean)");
@@ -223,8 +223,8 @@ async function seed() {
     console.log("   - room-102 (2 hours - within SLA)");
     console.log("   - lobby-main (1 hour - within SLA)");
     console.log("   - inactive-room (is_active = false)");
-    console.log("\n🔗 Firestore UI: http://localhost:4000/firestore");
-    console.log("🔗 Functions UI: http://localhost:4000/functions\n");
+    console.log("\n Firestore UI: http://localhost:4000/firestore");
+    console.log(" Functions UI: http://localhost:4000/functions\n");
 }
 
 seed().catch(console.error);

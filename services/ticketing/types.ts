@@ -22,7 +22,8 @@ export enum TicketStatus {
 export enum AlertType {
     SAFETY_HAZARD = 'SAFETY_HAZARD',
     QUALITY_FAILURE = 'QUALITY_FAILURE',
-    SLA_BREACH = 'SLA_BREACH'
+    SLA_MISSING_CLEAN = 'SLA_MISSING_CLEAN',
+    SLA_BREACH_RECOVERED = 'SLA_BREACH_RECOVERED'
 }
 
 // Unified ticket creation request
@@ -37,8 +38,11 @@ export interface CreateTicketRequest {
         alertId: string;
         location?: string;
         detectedIssues?: string[];
-        score?: number;
-    };
+            score?: number;
+            correlationId?: string;
+        };
+        /** Must be true when the caller has already authorized the alert/building scope. */
+        authorizationChecked?: boolean;
 }
 
 // Unified ticket response

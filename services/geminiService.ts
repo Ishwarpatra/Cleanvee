@@ -1,12 +1,28 @@
 /// <reference types="vite/client" />
-import { GoogleGenAI } from "@google/genai";
 import { CleaningLog, Checkpoint, ShiftReport } from "../types";
 import { mcpGetCleaningLogsForAI, mcpGetCheckpointsForAI } from "./mcpServer";
 
 // ============================================================
 // Fix #99: model is configurable via env var — defaults to flash
 // ============================================================
-const GEMINI_MODEL = (import.meta.env as Record<string, string>).VITE_GEMINI_MODEL ?? "gemini-1.5-flash";
+const GEMINI_MODEL = (import.meta.env as unknown as Record<string, string>).VITE_GEMINI_MODEL ?? "gemini-1.5-flash";
+const GEMINI_FUNCTION_URL = (import.meta.env as unknown as Record<string, string | undefined>).VITE_GEMINI_FUNCTION_URL;
+
+async function callGeminiBackend(payload: Record<string, unknown>): Promise<string | null> {
+  if (!GEMINI_FUNCTION_URL) return null;
+  const { getAuth } = await import('firebase/auth');
+  const token = await getAuth().currentUser?.getIdToken();
+  if (!token) return null;
+
+  const response = await fetch(GEMINI_FUNCTION_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ model: GEMINI_MODEL, ...payload }),
+  });
+  if (!response.ok) throw new Error(`Gemini backend request failed (${response.status})`);
+  const result = await response.json() as { text?: unknown };
+  return typeof result.text === 'string' ? result.text : null;
+}
 
 // ============================================================
 // Fix #100: Circuit Breaker
@@ -16,8 +32,8 @@ const GEMINI_MODEL = (import.meta.env as Record<string, string>).VITE_GEMINI_MOD
 const circuitBreaker = {
   failures: 0,
   openUntil: 0,
-  readonly MAX_FAILURES: 3,
-  readonly RESET_MS: 5 * 60 * 1000, // 5 minutes
+  MAX_FAILURES: 3,
+  RESET_MS: 5 * 60 * 1000, // 5 minutes
 
   isOpen(): boolean {
     if (this.openUntil > 0 && Date.now() < this.openUntil) return true;
@@ -88,10 +104,8 @@ export const generateShiftReport = async (
   logs: CleaningLog[],
   checkpoints: Checkpoint[]
 ): Promise<ShiftReport | null> => {
-  const apiKey = (import.meta.env as Record<string, string>).VITE_GEMINI_API_KEY;
-
-  if (!apiKey) {
-    console.warn("[Gemini Service] Missing VITE_GEMINI_API_KEY — returning fallback report.");
+  if (!GEMINI_FUNCTION_URL) {
+    console.warn("[Gemini Service] No secured backend endpoint configured — returning fallback report.");
     return buildFallbackReport(logs, checkpoints);
   }
 
@@ -118,14 +132,11 @@ export const generateShiftReport = async (
     // Fix #97: All logs are batched into ONE prompt (no per-log API calls)
     const prompt = buildShiftReportPrompt(sanitizedLogs, sanitizedCheckpoints);
 
-    const genAI = new GoogleGenAI({ apiKey });
-    const response = await genAI.models.generateContent({
-      model: GEMINI_MODEL,   // Fix #99: configurable model
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
+    const text = await callGeminiBackend({
+      operation: 'shift_report',
+      prompt,
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
     if (!text) {
       circuitBreaker.recordFailure();
       return buildFallbackReport(logs, checkpoints);
@@ -195,10 +206,8 @@ export const analyzeAlert = async (
   alert: Record<string, unknown>,
   relevantLogs: CleaningLog[]
 ): Promise<{ analysis: string; suggestedAction: string } | null> => {
-  const apiKey = (import.meta.env as Record<string, string>).VITE_GEMINI_API_KEY;
-
-  if (!apiKey) {
-    console.error("Missing VITE_GEMINI_API_KEY in .env file");
+  if (!GEMINI_FUNCTION_URL) {
+    console.warn("[Gemini Service] No secured backend endpoint configured — skipping alert analysis.");
     return null;
   }
 
@@ -232,14 +241,11 @@ Respond with JSON:
 }
 `;
 
-    const genAI = new GoogleGenAI({ apiKey });
-    const response = await genAI.models.generateContent({
-      model: GEMINI_MODEL,   // Fix #99
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
+    const text = await callGeminiBackend({
+      operation: 'alert_analysis',
+      prompt,
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
     if (!text) return null;
 
     circuitBreaker.recordSuccess();

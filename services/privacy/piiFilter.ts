@@ -1,186 +1,137 @@
 /**
  * PII Filter Service
  * Sanitizes data before passing to AI (Gemini) or external systems
- * 
+ *
  * Key principle: AI only sees what we explicitly allow through MCP tools
  */
 
 import {
     AI_SAFE_FIELDS,
-    PII_FIELDS,
     REDACTION_PATTERNS,
     PRIVACY_CONTEXTS,
-    type PrivacyContext
 } from './dataPolicy';
-import type { CleaningLog, Checkpoint, Building, User, Alert } from '../../types';
+import type { CleaningLog, Checkpoint, Building, Alert } from '../../types';
+
+type UnknownRecord = Record<string, unknown>;
 
 /**
- * Recursively picks only specified paths from an object
+ * Recursively picks only specified paths from an object.
  */
-function pickPaths<T extends Record<string, any>>(obj: T, paths: string[]): Partial<T> {
-    const result: Record<string, any> = {};
+function pickPaths<T extends UnknownRecord>(obj: T, paths: string[]): Partial<T> {
+    const result: UnknownRecord = {};
 
     for (const path of paths) {
         const parts = path.split('.');
-        let source: any = obj;
-        let target: any = result;
+        let source: unknown = obj;
+        let target: UnknownRecord = result;
 
-        for (let i = 0; i < parts.length; i++) {
+        for (let i = 0; i < parts.length; i += 1) {
+            if (!isRecord(source)) break;
+
             const key = parts[i];
-
-            if (source === undefined || source === null) break;
-
             if (i === parts.length - 1) {
-                // Last part - copy the value
-                if (source[key] !== undefined) {
-                    target[key] = source[key];
-                }
-            } else {
-                // Intermediate part - create nested object if needed
-                if (source[key] !== undefined) {
-                    target[key] = target[key] || {};
-                    source = source[key];
-                    target = target[key];
-                }
+                if (source[key] !== undefined) target[key] = source[key];
+                break;
             }
+
+            if (source[key] === undefined) break;
+            const child = target[key];
+            if (!isRecord(child)) target[key] = {};
+            source = source[key];
+            target = target[key] as UnknownRecord;
         }
     }
 
     return result as Partial<T>;
 }
 
-/**
- * Recursively removes specified paths from an object (mutates a clone)
- */
-function omitPaths<T extends Record<string, any>>(obj: T, paths: string[]): T {
-    const clone = JSON.parse(JSON.stringify(obj)) as T;
-
-    for (const path of paths) {
-        const parts = path.split('.');
-        let current: any = clone;
-
-        for (let i = 0; i < parts.length - 1; i++) {
-            if (current === undefined || current === null) break;
-            current = current[parts[i]];
-        }
-
-        if (current !== undefined && current !== null) {
-            delete current[parts[parts.length - 1]];
-        }
-    }
-
-    return clone;
+function isRecord(value: unknown): value is UnknownRecord {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
- * Applies redaction patterns to text content
+ * Applies redaction patterns to text content.
  */
 export function redactText(text: string): string {
-    let result = text;
-
-    for (const { pattern, replacement } of REDACTION_PATTERNS) {
-        result = result.replace(pattern, replacement);
-    }
-
-    return result;
+    return REDACTION_PATTERNS.reduce(
+        (result, { pattern, replacement }) => result.replace(pattern, replacement),
+        text,
+    );
 }
 
 /**
- * Sanitize a CleaningLog for AI processing
- * Removes worker IDs, geolocation, and other PII
+ * Sanitize a CleaningLog for AI processing.
+ * Removes worker IDs, geolocation, and other PII.
  */
 export function sanitizeLogForAI(log: CleaningLog): Partial<CleaningLog> {
-    // Pick only AI-safe fields
     const sanitized = pickPaths(log, AI_SAFE_FIELDS.cleaningLog);
 
-    // Additional text redaction in case of embedded PII
     if (sanitized.verification_result?.rejection_reason) {
         sanitized.verification_result.rejection_reason = redactText(
-            sanitized.verification_result.rejection_reason
+            sanitized.verification_result.rejection_reason,
         );
     }
 
     return sanitized;
 }
 
-/**
- * Sanitize a Checkpoint for AI processing
- */
+/** Sanitize a Checkpoint for AI processing. */
 export function sanitizeCheckpointForAI(checkpoint: Checkpoint): Partial<Checkpoint> {
     return pickPaths(checkpoint, AI_SAFE_FIELDS.checkpoint);
 }
 
-/**
- * Sanitize a Building for AI processing
- * Removes physical address
- */
+/** Sanitize a Building for AI processing. */
 export function sanitizeBuildingForAI(building: Building): Partial<Building> {
     return pickPaths(building, AI_SAFE_FIELDS.building);
 }
 
-/**
- * Sanitize an alert object for AI processing
- */
-import type { CleaningLog, Checkpoint, Building, User, Alert } from '../../types';
-
+/** Sanitize an alert object for AI processing. */
 export function sanitizeAlertForAI(alert: Alert): Partial<Alert> {
     const sanitized = pickPaths(alert, AI_SAFE_FIELDS.alert);
 
-    // Redact any text fields
-    if (sanitized.details && typeof sanitized.details === 'object') {
+    if (isRecord(sanitized.details)) {
         for (const key of Object.keys(sanitized.details)) {
-            if (typeof sanitized.details[key] === 'string') {
-                sanitized.details[key] = redactText(sanitized.details[key]);
-            }
+            const value = sanitized.details[key];
+            if (typeof value === 'string') sanitized.details[key] = redactText(value);
         }
     }
 
     return sanitized;
 }
 
-/**
- * Sanitize data based on context (AI, ticketing, internal)
- */
-export function sanitizeForContext<T extends Record<string, any>>(
+/** Sanitize data based on context (AI, ticketing, internal). */
+export function sanitizeForContext<T extends UnknownRecord>(
     data: T,
     entityType: 'cleaningLog' | 'checkpoint' | 'building' | 'alert',
-    contextName: keyof typeof PRIVACY_CONTEXTS = 'ai_analysis'
+    contextName: keyof typeof PRIVACY_CONTEXTS = 'ai_analysis',
 ): Partial<T> {
     const context = PRIVACY_CONTEXTS[contextName];
     const safeFields = AI_SAFE_FIELDS[entityType] || [];
+    const sanitized = pickPaths(data, safeFields);
+    const timestamp = data['created_at'];
 
-    let sanitized = pickPaths(data, safeFields);
-
-    // Add back context-allowed fields
-    if (context.allowTimestamps && (data as any).created_at) {
-        (sanitized as any).created_at = (data as any).created_at;
+    if (context.allowTimestamps && timestamp !== undefined) {
+        (sanitized as UnknownRecord)['created_at'] = timestamp;
     }
 
     return sanitized;
 }
 
-/**
- * Batch sanitize multiple logs for AI
- */
+/** Batch sanitize multiple logs for AI. */
 export function sanitizeLogsForAI(logs: CleaningLog[]): Partial<CleaningLog>[] {
     return logs.map(sanitizeLogForAI);
 }
 
-/**
- * Batch sanitize multiple checkpoints for AI
- */
+/** Batch sanitize multiple checkpoints for AI. */
 export function sanitizeCheckpointsForAI(checkpoints: Checkpoint[]): Partial<Checkpoint>[] {
     return checkpoints.map(sanitizeCheckpointForAI);
 }
 
-/**
- * Generate a privacy audit log entry
- * Tracks what data was filtered before AI access
- */
+/** Generate a privacy audit log entry. */
 export function generatePrivacyAuditLog(
-    originalData: Record<string, any>,
-    sanitizedData: Record<string, any>,
-    context: string
+    originalData: UnknownRecord,
+    sanitizedData: UnknownRecord,
+    context: string,
 ): {
     timestamp: string;
     context: string;
@@ -189,29 +140,24 @@ export function generatePrivacyAuditLog(
 } {
     const originalKeys = getAllPaths(originalData);
     const sanitizedKeys = getAllPaths(sanitizedData);
-    const fieldsRemoved = originalKeys.filter(k => !sanitizedKeys.includes(k));
+    const fieldsRemoved = originalKeys.filter((key) => !sanitizedKeys.includes(key));
 
     return {
         timestamp: new Date().toISOString(),
         context,
         fieldsRemoved,
-        piiProtected: fieldsRemoved.length > 0
+        piiProtected: fieldsRemoved.length > 0,
     };
 }
 
-/**
- * Helper to get all paths in an object
- */
-function getAllPaths(obj: Record<string, any>, prefix = ''): string[] {
+function getAllPaths(obj: UnknownRecord, prefix = ''): string[] {
     const paths: string[] = [];
 
     for (const key of Object.keys(obj)) {
         const fullPath = prefix ? `${prefix}.${key}` : key;
         paths.push(fullPath);
 
-        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
-            paths.push(...getAllPaths(obj[key], fullPath));
-        }
+        if (isRecord(obj[key])) paths.push(...getAllPaths(obj[key], fullPath));
     }
 
     return paths;

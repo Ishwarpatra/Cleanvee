@@ -10,7 +10,7 @@ Cleanvee has evolved from a simple data-logging prototype (V1) to a **compliance
 
 ```mermaid
 flowchart TB
-    subgraph Mobile["📱 Mobile App (Flutter)"]
+    subgraph Mobile["Mobile App (Flutter)"]
         NFC[NFC Tap] --> Log[CleaningLogV2]
         Camera[Photo Capture] --> AI[On-device AI]
         AI --> Log
@@ -18,22 +18,22 @@ flowchart TB
         Offline -->|SyncStatus| Cloud
     end
     
-    subgraph Cloud["☁️ Firebase Backend"]
+    subgraph Cloud["Firebase Backend"]
         Cloud[(Firestore)] --> Trigger[onLogCreated]
         Trigger --> Alerts[Create Alert]
         Trigger --> SLA[SLA Check]
         
-        Watchdog[⏰ SLA Watchdog] -->|every 15 min| SLA
+        Watchdog[SLA Watchdog] -->|every 15 min| SLA
         SLA --> Alerts
     end
     
-    subgraph MCP["🔐 MCP Privacy Layer"]
+    subgraph MCP["MCP Privacy Layer"]
         Alerts --> Filter[PII Filter]
         Filter --> Gemini[Google Gemini]
         Filter --> Tickets[ServiceNow/Jira]
     end
     
-    subgraph Dashboard["💻 Web Dashboard"]
+    subgraph Dashboard["Web Dashboard"]
         Cloud --> Realtime[Real-time Sync]
         Realtime --> LogFeed[LogFeed.tsx]
         Realtime --> FloorPlan[FloorPlan]
@@ -126,7 +126,7 @@ Displays real-time cleaning activity with V2 enhancements:
 
 ```bash
 # AI
-VITE_GEMINI_API_KEY=your-key
+VITE_GEMINI_FUNCTION_URL=https://REGION-PROJECT_ID.cloudfunctions.net/geminiAnalysis
 
 # ServiceNow (optional)
 SERVICENOW_INSTANCE=your-instance.service-now.com
