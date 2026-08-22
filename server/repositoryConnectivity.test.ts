@@ -18,10 +18,9 @@ describe("repository connectivity contracts", () => {
     expect(auditScript).toContain("await page.goto(baseUrl");
   });
 
-  it("keeps pnpm patch and override settings in the root package configuration used by the pinned pnpm version", () => {
+  it("does not retain an unused package-manager patch configuration that emits install warnings", () => {
     const packageJson = JSON.parse(readRepositoryFile("package.json"));
-    expect(packageJson.pnpm.patchedDependencies["wouter@3.7.1"]).toBe("patches/wouter@3.7.1.patch");
-    expect(packageJson.pnpm.overrides["tailwindcss>nanoid"]).toBe("3.3.7");
-    expect(fs.existsSync(path.join(process.cwd(), "patches", "wouter@3.7.1.patch"))).toBe(true);
+    expect(packageJson.pnpm).toBeUndefined();
+    expect(fs.existsSync(path.join(process.cwd(), "patches", "wouter@3.7.1.patch"))).toBe(false);
   });
 });
