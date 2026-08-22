@@ -2,6 +2,10 @@
 
 Cleanvee is a permanent proof-of-clean operations workspace for cleaning teams. It provides a role-aware daily workflow for `user` members and a protected **Admin Mode** for `admin` operators to manage buildings, checkpoints, team access, assignments, and operational rules.
 
+## Live application
+
+[Open Cleanvee Operations](https://cleanveeops-j6ep8cxf.manus.space/)
+
 ## Application architecture
 
 The application uses React 19, TypeScript, Vite, Tailwind CSS, Express, tRPC, Drizzle ORM, and MySQL. Authentication is handled through Manus OAuth. The persistent backend is designed around assignment-scoped operational data: non-admin users work only with their active site assignments, while server-side procedures enforce administrator-only configuration and proof-decision actions.
