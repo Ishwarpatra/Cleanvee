@@ -22,7 +22,7 @@
 |---|---|
 | Development Vite config injected a collector asset that is not part of the migrated repository. | The injection now occurs only when the optional collector file exists. |
 | The rendered UI audit assumed port 3000 while the server deliberately falls back to an available port. | `UI_QA_BASE_URL` now selects the audit target; it defaults to `http://127.0.0.1:3000/`. |
-| pnpm 10 ignored patch and override settings declared in `package.json`. | Settings now live in `pnpm-workspace.yaml`; the lockfile was regenerated and validated with a frozen offline install. |
+| The newer workspace-only pnpm configuration did not apply the Wouter patch under the repository’s pinned pnpm 10.4 command. | The root package patch and override directives were restored, the lockfile was regenerated, and a clean extracted copy passed a frozen offline install with the Wouter patch applied. |
 | A Vite 5-only JSX-location plugin blocked development startup under Vite 7. | The optional locator integration and its incompatible dependency were removed. |
 
 ## Managed-environment acceptance still required
