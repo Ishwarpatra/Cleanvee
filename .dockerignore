@@ -1,7 +1,0 @@
-node_modules
-dist
-.git
-.firebase
-functions/node_modules
-functions/lib
-*.log
