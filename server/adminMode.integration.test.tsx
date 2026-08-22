@@ -29,6 +29,9 @@ let AdminMode: ComponentType;
 let root: Root;
 function button(label: string) { const match = Array.from(document.querySelectorAll("button")).find(candidate => candidate.textContent?.replace(/\s+/g, " ").trim() === label); if (!match) throw new Error(`Missing button: ${label}`); return match as HTMLButtonElement; }
 function bodyText() { return document.body.textContent?.replace(/\s+/g, " ") ?? ""; }
+function iconNames() { return Array.from(document.querySelectorAll<SVGSVGElement>("svg[data-cleanvee-icon]")).map(icon => icon.dataset.cleanveeIcon); }
+function expectCustomIcons(...names: string[]) { const rendered = iconNames(); expect(rendered.length).toBeGreaterThan(0); expect(Array.from(document.querySelectorAll("svg")).every(icon => icon.hasAttribute("data-cleanvee-icon"))).toBe(true); for (const name of names) expect(rendered).toContain(name); }
+function iconButton(label: string) { const control = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`); if (!control) throw new Error(`Missing icon button: ${label}`); return control; }
 
 describe("mounted Admin Mode connected flows", () => {
   beforeEach(async () => {
@@ -60,6 +63,28 @@ describe("mounted Admin Mode connected flows", () => {
     const navigationIcons = Array.from(document.querySelectorAll(".admin-sidebar nav [data-cleanvee-icon]")).map(icon => icon.getAttribute("data-cleanvee-icon"));
     expect(navigationIcons).toEqual(["review", "site", "team", "rules"]);
     expect(document.querySelector('.admin-header [data-cleanvee-icon="admin"]')).not.toBeNull();
+  });
+
+  it("renders only original Cleanvee SVGs across all Admin Mode sections and management dialogs", async () => {
+    expectCustomIcons("mark", "review", "site", "team", "rules", "back", "admin");
+
+    await act(async () => { button("Buildings & checkpoints").click(); });
+    expectCustomIcons("site", "add");
+    await act(async () => { button("Add building").click(); });
+    expectCustomIcons("close");
+    await act(async () => { iconButton("Close").click(); });
+
+    await act(async () => { button("Team access").click(); });
+    expectCustomIcons("team");
+    await act(async () => { button("Invite member").click(); });
+    expectCustomIcons("team", "close");
+    await act(async () => { iconButton("Close").click(); });
+    await act(async () => { button("Deactivate").click(); });
+    expectCustomIcons("close");
+    await act(async () => { iconButton("Close").click(); });
+
+    await act(async () => { button("Operational rules").click(); });
+    expectCustomIcons("rules");
   });
 
   it("guides a first-time administrator straight to building setup instead of an inert empty overview", async () => {

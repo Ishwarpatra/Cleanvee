@@ -48,6 +48,9 @@ let root: Root;
 function button(label: string) { const match = Array.from(document.querySelectorAll("button")).find(candidate => candidate.textContent?.replace(/\s+/g, " ").trim() === label); if (!match) throw new Error(`Missing button: ${label}`); return match as HTMLButtonElement; }
 function bodyText() { return document.body.textContent?.replace(/\s+/g, " ") ?? ""; }
 function setValue(control: HTMLInputElement, value: string) { const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set; setter?.call(control, value); control.dispatchEvent(new Event("input", { bubbles: true })); }
+function iconNames() { return Array.from(document.querySelectorAll<SVGSVGElement>("svg[data-cleanvee-icon]")).map(icon => icon.dataset.cleanveeIcon); }
+function expectCustomIcons(...names: string[]) { const rendered = iconNames(); expect(rendered.length).toBeGreaterThan(0); expect(Array.from(document.querySelectorAll("svg")).every(icon => icon.hasAttribute("data-cleanvee-icon"))).toBe(true); for (const name of names) expect(rendered).toContain(name); }
+function iconButton(label: string) { const control = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`); if (!control) throw new Error(`Missing icon button: ${label}`); return control; }
 
 describe("authenticated connected Workspace tabs", () => {
   beforeEach(async () => {
@@ -82,10 +85,35 @@ describe("authenticated connected Workspace tabs", () => {
     expect(document.querySelector('[aria-label="Open notifications"] [data-cleanvee-icon="notice"]')).not.toBeNull();
   });
 
-  it("keeps the primary Workspace and Admin Mode icon surfaces free of third-party generic icon imports", () => {
+  it("renders only original Cleanvee SVGs across all Workspace panels, notification drawer, and proof dialogs", async () => {
+    expectCustomIcons("mark", "shift", "search", "notice", "warning", "review", "proof");
+    await act(async () => { iconButton("Open notifications").click(); });
+    expectCustomIcons("notice", "close");
+    await act(async () => { iconButton("Close notifications").click(); });
+
+    for (const [tab, names] of [
+      ["Review", ["review", "proof", "warning"]],
+      ["Sites", ["site", "launch", "chevronRight"]],
+      ["Reports", ["reports", "export"]],
+      ["Team", ["team", "search"]],
+      ["Settings", ["rules", "notice"]],
+    ] as const) {
+      await act(async () => { button(tab).click(); });
+      expectCustomIcons(...names);
+    }
+
+    mocks.auth.user = { id: 8, role: "user", name: "Site Operator", email: "operator@example.com" };
+    await act(async () => { root.render(<Workspace key="member-icon-dialogs" />); });
+    await act(async () => { button("Log proof").click(); });
+    expectCustomIcons("proof", "verified", "close");
+    await act(async () => { button("Cancel").click(); });
+  });
+
+  it("keeps all route-reachable icon surfaces free of third-party generic icon imports", () => {
     const workspaceSource = readFileSync(resolve(process.cwd(), "client/src/pages/Workspace.tsx"), "utf8");
     const adminModeSource = readFileSync(resolve(process.cwd(), "client/src/pages/AdminMode.tsx"), "utf8");
-    for (const source of [workspaceSource, adminModeSource]) {
+    const errorBoundarySource = readFileSync(resolve(process.cwd(), "client/src/components/ErrorBoundary.tsx"), "utf8");
+    for (const source of [workspaceSource, adminModeSource, errorBoundarySource]) {
       expect(source).toContain('from "@/components/CleanveeIcon"');
       expect(source).not.toContain('from "lucide-react"');
     }
