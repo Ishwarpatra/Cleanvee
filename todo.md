@@ -1,0 +1,131 @@
+# Project TODO
+
+- [x] Define Drizzle/MySQL schema for buildings, checkpoints, settings, cleaning logs, proof records, shifts, team assignments, and admin activity.
+- [x] Apply database migrations and verify the schema in MySQL.
+- [x] Implement protected tRPC procedures for workspace reads and operational updates.
+- [x] Implement admin-only procedures for building, checkpoint, team, role, and settings management.
+- [x] Add dedicated workspace reads and remaining operational mutations required by the workspace flows.
+- [x] Harden workspace and admin mutations with consistency, missing-record, and duplicate-conflict handling.
+- [x] Complete admin team invite lifecycle and deactivation/reactivation management flows.
+- [x] Add Manus OAuth-gated workspace access and role-aware Admin Mode navigation.
+- [x] Build the responsive TypeUI-inspired Shift Command Center with the Proof Receipt and floor-plan panel.
+- [x] Build interactive Review Queue, Sites / Floor-Plan, Reports, Team, and Settings tabs.
+- [x] Build the Admin Mode dashboard with user role management, site health, activity log, and CRUD dialogs.
+- [x] Persist admin-configurable evidence thresholds, shift hours, notification rules, and retention policy with live workspace updates.
+- [x] Add loading, empty, error, success, dialog, toast, and mobile responsive states across the workspace.
+- [x] Add Vitest coverage for authorization, admin procedures, persistence, and critical workspace interactions.
+- [x] Run type checks, production build, narrow-screen verification, and role-based flow checks.
+- [x] Verify target users, prevent duplicate pending invitations, and harden remaining team assignment lifecycle edge cases.
+- [x] Refresh live workspace policy changes without a full page reload and apply notification rules to workspace notifications.
+- [x] Add dedicated query error and retry states for workspace data, team directory, and Admin Mode data.
+- [x] Save a production-ready checkpoint and provide publishing guidance.
+- [x] Verify that live notification-rule changes alter an already-open workspace notification flow.
+- [x] Add a mounted workspace integration test that updates notification rules and verifies the notification trigger and drawer react without reload.
+- [x] Perform an authenticated browser check of Admin Mode changing notification rules while an existing workspace remains open — deferred with the user's password-safe consent; mounted role and propagation tests cover this flow.
+- [x] Stress-test connected navigation across Shift, Review, Sites, Reports, Team, Settings, and Admin Mode.
+- [x] Exercise cross-page persistent mutations for buildings, checkpoints, proof decisions, reports, invitations, assignments, roles, and operational rules through the combined connected-flow, Admin Mode, workspace, and mounted integration suites.
+- [x] Verify linked loading, empty, error, duplicate-conflict, and authorization-recovery paths across the connected workspace.
+- [x] Add authenticated browser or mounted integration coverage for all six workspace tabs and Admin Mode.
+- [x] Add mounted propagation tests proving Admin Mode changes update already-open workspace views without reload.
+- [x] Add connected-flow tests for loading, empty, error, duplicate-conflict, and authorization-recovery behavior.
+- [x] Mount Workspace and Admin Mode together in a propagation test, then verify a visible workspace tab updates after an Admin Mode mutation without reload.
+- [x] Add a mounted Admin Mode duplicate-invite or duplicate-assignment flow that renders the conflict error and allows recovery without reload.
+- [x] Provide explicit publishing guidance for the latest stress-tested checkpoint, including remaining live OAuth verification caveats.
+- [x] Create and validate a reusable Cleanvee user-functionality review skill.
+- [x] Run the user-functionality review across end-user and administrator workflows, then prioritize findings.
+- [x] Implement and validate the highest-priority review findings in the permanent workspace.
+- [x] Connect Shift proof-decision controls to the persistent review mutation and add a mounted regression test.
+- [x] Replace the non-functional report-export affordance with a real downloadable report artifact and test its output.
+- [x] Resolve or clearly defer the non-functional Review, floor-plan, and Team filter controls.
+- [x] Define the non-admin daily operating journey and its permitted actions across all six workspace tabs.
+- [x] Make Shift and Review actions role-appropriate so non-admins can act on their assigned operational work without administrative powers.
+- [x] Add non-admin guidance, assignment visibility, and restricted-state explanations where Admin Mode capabilities are unavailable.
+- [x] Add mounted role-based tests for non-admin navigation, allowed work, and protected Admin Mode capabilities.
+- [x] Restrict proof-review decisions to authorized reviewers or admins in both the router and interface.
+- [x] Define and validate the non-admin journey tab-by-tab across Shift, Review, Sites, Reports, Team, and Settings.
+- [x] Add mounted non-admin coverage across all six tabs, including absence or blocking of reviewer-only actions.
+- [x] Prove a separately mounted Workspace session refreshes an Admin Mode change within the documented 15-second polling window.
+- [x] State the polling-based cross-session refresh delay explicitly in the release publishing guidance.
+- [x] Run an actual Admin Mode mutation in a mounted integration flow and prove the separately mounted Workspace visibly refreshes through the emitted cross-window signal.
+- [x] Verify the release guidance documents immediate same-origin sync and the 15-second fallback without overstating the test evidence.
+- [x] Add a separate polling-fallback test with cross-window signaling disabled, or explicitly retain the fallback as documented but unexercised behavior.
+- [x] Scope every non-admin workspace read procedure to active building assignments and prevent global endpoint data exposure.
+- [x] Restrict the non-admin team endpoint to the current member and assignment context, with service tests for no global directory leakage.
+- [x] Document and verify the live-update freshness guarantee for independently opened Workspace sessions after an Admin Mode change.
+- [x] Reset invalid selected site and checkpoint state when assignment-scoped workspace data changes.
+- [x] Scope every non-admin workspace read procedure to active building assignments and prevent global endpoint data exposure.
+- [x] Restrict the non-admin team endpoint to the current member and assignment context, with service tests for no global directory leakage.
+- [x] Document and verify the live-update freshness guarantee for independently opened Workspace sessions after an Admin Mode change.
+- [x] Reset invalid selected site and checkpoint state when assignment-scoped workspace data changes.
+- [x] Run functional checks for interactive controls, navigation, search, forms, dialogs, downloads, and role-based actions.
+- [x] Verify responsive layouts across desktop, tablet, mobile portrait, and mobile landscape viewports.
+- [x] Audit keyboard access, focus visibility, form labeling, landmark structure, contrast, and reduced-motion behavior.
+- [x] Review visual alignment, typography, content accuracy, empty states, and absence of placeholder copy.
+- [x] Measure production UI performance and bundle behavior, then remediate priority findings.
+- [x] Save and deliver a UI-quality validated Cleanvee checkpoint with documented results.
+- [x] Document the required Firefox, Safari, and Microsoft Edge acceptance matrix as external pre-launch validation because this environment provides Chromium only.
+- [x] Explicitly test and document Workspace and Admin Mode search behavior, or clearly mark non-functional search controls as unavailable.
+- [x] Verify `prefers-reduced-motion` behavior across public entry and authenticated workspace motion with automated or code-level evidence.
+- [x] Perform and record a page-by-page visual/content QA pass covering all six tabs and Admin Mode, including empty states and visible copy.
+- [x] Document the limitation that authenticated Workspace/Admin Mode browser a11y and visual checks require a password-safe Manus OAuth session; retain mounted and source evidence as partial local coverage only.
+- [x] Create an explicit Firefox, Safari, Edge, and authenticated Chromium acceptance matrix with roles, flows, visual/a11y pass criteria, and a release-owner sign-off rule.
+- [x] Investigate why the administrator function is unavailable in the current Cleanvee workspace and identify the missing role or entry-point behavior.
+- [x] Implement the required administrator access and management flow without weakening server-side authorization.
+- [x] Add regression coverage for the reported administrator-access issue and validate the final role behavior.
+- [x] Save and deliver an administrator-functionality checkpoint.
+- [x] Superseded duplicate repository-integration planning entries after the destination and commit granularity were clarified.
+- [x] Inspect the selected Ishwarpatra/Cleanvee repository and reconcile its branch state with the validated permanent workspace.
+- [x] Create small, file-focused commits for the validated Cleanvee changes without local runtime artifacts.
+- [x] Push the file-focused Cleanvee commits to Ishwarpatra/Cleanvee and verify the remote branch.
+- [x] Migrate Ishwarpatra/Cleanvee main from the existing Firebase application to the validated permanent Manus OAuth and Drizzle/MySQL application.
+- [x] Preserve repository history while organizing the migration into file-focused commits and excluding generated runtime artifacts.
+- [x] Validate and push the complete permanent-app migration to the Ishwarpatra/Cleanvee main branch.
+- [x] Inventory the migrated repository’s file graph, dependency graph, and non-destructive dry-run validation surfaces.
+- [x] Audit client-to-tRPC, server-to-Drizzle, OAuth, role authorization, migration, and deployment integration contracts.
+- [x] Fix confirmed connectivity or integration defects and add focused regression coverage.
+- [x] Re-run full dry-run validation and document verified versus environment-dependent integration status.
+- [x] Commit and push verified connectivity fixes to Ishwarpatra/Cleanvee.
+- [x] Mirror the verified GitHub connectivity fixes into the managed Cleanvee workspace so future work starts from the audited source state.
+- [x] Save the recoverable connectivity-audit checkpoint after the completed synchronized managed-workspace validation.
+- [x] Verify from a clean extracted repository that pnpm applies the committed Wouter patch under frozen-install settings.
+- [x] Guard the optional Vite development collector so a migrated repository without the private asset has no broken injected request.
+- [x] Make the rendered UI audit script accept an explicit base URL so port fallback does not create false audit failures.
+- [x] Restore a patch-compatible root package configuration after the newer workspace-only settings failed under the pinned pnpm 10.4 clean install.
+- [x] Regenerate and validate the pnpm lockfile under the patch-compatible configuration.
+- [x] Remove the unused Wouter route-collection patch and its pnpm configuration so pinned pnpm 10.4 validation is warning-free.
+- [x] Re-run frozen-install validation without the pnpm configuration warning before saving the audit checkpoint.
+- [x] Remove the retired JSX-location package from the managed workspace dev dependencies so its Vite peer warning cannot recur.
+- [x] Remove the Vite 5-only JSX-location integration that blocks development startup under Vite 7.
+- [x] Inventory all generic S-shaped or placeholder icons in the Cleanvee workspace and document their replacement surfaces.
+- [x] Design and implement a reusable original Cleanvee icon system from scratch without generic placeholder symbols.
+- [x] Replace the identified generic icons with accessible custom icons across desktop and mobile workspace states.
+- [x] Add focused regression coverage and visual validation for the new icon system.
+- [x] Save and deliver a custom-icon update checkpoint.
+- [x] Document the complete icon-replacement inventory, including every prior generic icon surface and its Cleanvee counterpart.
+- [x] Replace remaining visible Lucide icons in Workspace and Admin Mode action, status, report, site, and dialog surfaces with custom Cleanvee icons.
+- [x] Add a regression test that prevents generic icon imports from returning to the primary Workspace and Admin Mode surfaces.
+- [x] Push the validated custom Cleanvee icon system to Ishwarpatra/Cleanvee main in file-focused commits and verify the remote head.
+- [x] Inspect Ishwarpatra/Cleanvee remote history to confirm whether the custom-icon update is represented by file-focused commits.
+- [x] Confirm no remote-history repair is required because the requested file-focused custom-icon commits are present on main.
+- [x] Verify and report the final GitHub commit structure for the custom-icon update.
+- [x] Inspect the permanent frontend migration commits on Ishwarpatra/Cleanvee main for the requested file-focused granularity.
+- [x] Repair the permanent frontend migration commit history by rewriting the bundled frontend changes into file-focused commits while preserving the final file tree.
+- [x] Verify and report the final permanent frontend migration commit structure.
+- [x] Inspect the GitHub author and committer metadata for the existing Cleanvee migration commits and explain the visible attribution labels.
+- [x] Replay, validate, and force-push the later audited, administrator, connectivity, and icon updates onto the rewritten history.
+- [x] Inspect the relationship between main and archive/pre-filewise-frontend-20260822 and determine whether a merge preserves the file-focused migration goal.
+- [x] Execute the safe approved branch-resolution action without changing the validated file tree.
+- [x] Verify and report the final Cleanvee branch structure.
+- [x] Create the approved branch-resolution commit with Ishwarpatra recorded as both Git author and committer.
+- [x] Verify the GitHub remote displays Ishwarpatra as the committer for the resulting branch-resolution commit.
+- [x] Verify the supplied live main commit-history URL displays the Ishwarpatra-attributed merge commit.
+- [x] Verify the canonical Ishwarpatra GitHub noreply identity and identify Cleanvee commits using the malformed author or committer address.
+- [x] Rewrite affected Cleanvee history with the verified Ishwarpatra identity so GitHub recognizes the commits as account-owned.
+- [x] Verify the live Cleanvee history presentation matches the desired “Ishwarpatra committed” attribution style.
+- [x] Correct the attribution-rewrite range so it starts at the verified parent of the first permanent migration commit.
+- [x] Repair the two residual malformed Ishwarpatra identity records reachable through the retained archive history.
+- [x] Inventory every custom Cleanvee icon use and identify frontend surfaces that require rendered verification.
+- [x] Verify custom icon rendering, sizing, contrast, and accessible labeling through source, mounted UI, and responsive browser checks.
+- [x] Fix any confirmed custom-icon rendering or accessibility defects and add focused regression coverage.
+- [x] Re-run full icon verification and document the outcome.
+- [ ] Synchronize the verified custom-icon checks and ErrorBoundary icon replacement to Ishwarpatra/Cleanvee in file-focused commits.
