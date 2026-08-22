@@ -4,6 +4,7 @@ import puppeteer from "puppeteer-core";
 import axe from "axe-core";
 
 const outputDir = path.resolve("ui-qa");
+const baseUrl = process.env.UI_QA_BASE_URL ?? "http://127.0.0.1:3000/";
 fs.mkdirSync(outputDir, { recursive: true });
 
 const browser = await puppeteer.launch({
@@ -14,7 +15,7 @@ const browser = await puppeteer.launch({
 
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
-await page.goto("http://127.0.0.1:3000/", { waitUntil: "networkidle0", timeout: 60_000 });
+await page.goto(baseUrl, { waitUntil: "networkidle0", timeout: 60_000 });
 await new Promise(resolve => setTimeout(resolve, 600));
 
 await page.evaluate(axe.source);
