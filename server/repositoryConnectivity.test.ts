@@ -18,12 +18,10 @@ describe("repository connectivity contracts", () => {
     expect(auditScript).toContain("await page.goto(baseUrl");
   });
 
-  it("keeps pnpm patch and override settings in supported workspace configuration", () => {
+  it("keeps pnpm patch and override settings in the root package configuration used by the pinned pnpm version", () => {
     const packageJson = JSON.parse(readRepositoryFile("package.json"));
-    const workspaceConfig = readRepositoryFile("pnpm-workspace.yaml");
-    expect(packageJson.pnpm).toBeUndefined();
-    expect(workspaceConfig).toContain("wouter@3.7.1: patches/wouter@3.7.1.patch");
-    expect(workspaceConfig).toContain("tailwindcss>nanoid: 3.3.7");
+    expect(packageJson.pnpm.patchedDependencies["wouter@3.7.1"]).toBe("patches/wouter@3.7.1.patch");
+    expect(packageJson.pnpm.overrides["tailwindcss>nanoid"]).toBe("3.3.7");
     expect(fs.existsSync(path.join(process.cwd(), "patches", "wouter@3.7.1.patch"))).toBe(true);
   });
 });
