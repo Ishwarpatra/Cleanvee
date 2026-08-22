@@ -1,0 +1,1 @@
+ALTER TABLE `teamInvites` ADD `acceptedAt` timestamp;
