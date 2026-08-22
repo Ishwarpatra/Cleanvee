@@ -56,6 +56,12 @@ describe("mounted Admin Mode connected flows", () => {
     expect(bodyText()).toContain("Operational rules");
   });
 
+  it("uses the original Cleanvee icon system for administrator navigation and identity", () => {
+    const navigationIcons = Array.from(document.querySelectorAll(".admin-sidebar nav [data-cleanvee-icon]")).map(icon => icon.getAttribute("data-cleanvee-icon"));
+    expect(navigationIcons).toEqual(["review", "site", "team", "rules"]);
+    expect(document.querySelector('.admin-header [data-cleanvee-icon="admin"]')).not.toBeNull();
+  });
+
   it("guides a first-time administrator straight to building setup instead of an inert empty overview", async () => {
     mocks.dataQuery.data = { ...adminData, buildings: [], checkpoints: [], assignments: [], siteHealth: [] };
     await act(async () => { root.render(<AdminMode />); });
