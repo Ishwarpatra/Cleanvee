@@ -1,9 +1,12 @@
 import React, { type SVGProps } from "react";
 
-export type CleanveeIconName =
-  | "mark" | "shift" | "review" | "site" | "reports" | "team" | "rules" | "admin"
-  | "sync" | "offline" | "search" | "notice" | "proof" | "add" | "issue" | "export"
-  | "warning" | "waiting" | "approved" | "verified" | "close" | "back" | "launch" | "retake" | "send" | "chevronRight" | "chevronDown";
+export const cleanveeIconNames = [
+  "mark", "shift", "review", "site", "reports", "team", "rules", "admin",
+  "sync", "offline", "search", "notice", "proof", "add", "issue", "export",
+  "warning", "waiting", "approved", "verified", "close", "back", "launch", "retake", "send", "chevronRight", "chevronDown",
+] as const;
+
+export type CleanveeIconName = (typeof cleanveeIconNames)[number];
 
 type CleanveeIconProps = Omit<SVGProps<SVGSVGElement>, "children"> & {
   name: CleanveeIconName;
