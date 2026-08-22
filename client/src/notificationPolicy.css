@@ -1,0 +1,3 @@
+html[data-cleanvee-proof-review-alerts="off"] .notification-button {
+  display: none;
+}
