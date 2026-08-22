@@ -7,7 +7,7 @@
 
 | Area | Evidence | Result |
 |---|---|---|
-| Dependency reproducibility | `pnpm install --frozen-lockfile --offline` | Passed with pnpm 10.4.1. |
+| Dependency reproducibility | Frozen offline install from a clean repository copy | Passed with pnpm 10.4.1 without the package-manager configuration warning. |
 | Client, server, and role contracts | Vitest regression suite | 12 files and 38 tests passed. |
 | Type connectivity | `pnpm exec tsc --noEmit` | Passed. |
 | Production packaging | `pnpm build` | Passed. |
@@ -22,7 +22,7 @@
 |---|---|
 | Development Vite config injected a collector asset that is not part of the migrated repository. | The injection now occurs only when the optional collector file exists. |
 | The rendered UI audit assumed port 3000 while the server deliberately falls back to an available port. | `UI_QA_BASE_URL` now selects the audit target; it defaults to `http://127.0.0.1:3000/`. |
-| The newer workspace-only pnpm configuration did not apply the Wouter patch under the repository’s pinned pnpm 10.4 command. | The root package patch and override directives were restored, the lockfile was regenerated, and a clean extracted copy passed a frozen offline install with the Wouter patch applied. |
+| An unused Wouter route-collection patch required package-manager configuration that the pinned pnpm command warns is deprecated. | The unused patch and configuration were removed; the lockfile was regenerated and a clean extracted copy passed a warning-free frozen offline install. |
 | A Vite 5-only JSX-location plugin blocked development startup under Vite 7. | The optional locator integration and its incompatible dependency were removed. |
 
 ## Managed-environment acceptance still required
