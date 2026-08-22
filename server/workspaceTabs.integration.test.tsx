@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import React, { act, type ComponentType } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -71,6 +73,22 @@ describe("authenticated connected Workspace tabs", () => {
     }
     await act(async () => { button("Admin Mode").click(); });
     expect(mocks.go).toHaveBeenCalledWith("/admin");
+  });
+
+  it("renders the original Cleanvee icon set for the brand and all workspace navigation tabs", () => {
+    expect(document.querySelector('[data-cleanvee-icon="mark"]')).not.toBeNull();
+    const navigationIcons = Array.from(document.querySelectorAll(".sidebar nav [data-cleanvee-icon]")).map(icon => icon.getAttribute("data-cleanvee-icon"));
+    expect(navigationIcons).toEqual(["shift", "review", "site", "reports", "team", "rules"]);
+    expect(document.querySelector('[aria-label="Open notifications"] [data-cleanvee-icon="notice"]')).not.toBeNull();
+  });
+
+  it("keeps the primary Workspace and Admin Mode icon surfaces free of third-party generic icon imports", () => {
+    const workspaceSource = readFileSync(resolve(process.cwd(), "client/src/pages/Workspace.tsx"), "utf8");
+    const adminModeSource = readFileSync(resolve(process.cwd(), "client/src/pages/AdminMode.tsx"), "utf8");
+    for (const source of [workspaceSource, adminModeSource]) {
+      expect(source).toContain('from "@/components/CleanveeIcon"');
+      expect(source).not.toContain('from "lucide-react"');
+    }
   });
 
   it("renders loading, empty, error, and retry states from the shared query", async () => {
