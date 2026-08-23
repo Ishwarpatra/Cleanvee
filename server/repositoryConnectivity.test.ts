@@ -12,6 +12,14 @@ describe("repository connectivity contracts", () => {
     expect(viteConfig).not.toContain("@builder.io/vite-plugin-jsx-loc");
   });
 
+  it("requires development network diagnostics to redact credential-bearing headers and URL parameters", () => {
+    const collector = readRepositoryFile("client/public/__manus__/debug-collector.js");
+    expect(collector).toContain("function sanitizeHeaders");
+    expect(collector).toContain("function sanitizeUrl");
+    expect(collector).toContain('sanitizeHeaders(requestHeaders)');
+    expect(collector).toContain('url.searchParams.set(key, "[REDACTED]")');
+  });
+
   it("allows the rendered UI audit to target the actual server address", () => {
     const auditScript = readRepositoryFile("scripts/ui-qa-audit.mjs");
     expect(auditScript).toContain("process.env.UI_QA_BASE_URL");
