@@ -145,4 +145,14 @@
 - [x] Fix and regression-test every confirmed defect found in the independent audit.
 - [x] Revalidate and synchronize the completed independent audit outcome to Ishwarpatra/Cleanvee.
 - [x] Investigate the authenticated Workspace sync-loading state observed during final release verification (normal initial data request; no persistent defect).
-- [ ] Revalidate the authenticated Workspace after the sync-loading investigation and synchronize any additional fix.
+- [x] Revalidate the authenticated Workspace after the sync-loading investigation and synchronize the verification result.
+- [x] Review the existing building, checkpoint, operator-invitation, and dependency-monitoring capabilities for operational readiness.
+- [x] Add safe operational-readiness guidance or monitoring support without fabricating real site or user data.
+- [ ] Collect the real building, checkpoint, and operator details required to activate operational workflows.
+- [x] Validate the operational-readiness improvements and document the remaining activation steps.
+- [x] Confirm the target city or user-designated public location for map-based initial-site setup (Mumbai).
+- [x] Research and propose a public-site checkpoint model without claiming unverified interior or NFC details (approved Mumbai map-reference pilot).
+- [x] Create only the approved map-based building and checkpoint records, then validate their visibility in Cleanvee (building created; zero fictional checkpoints).
+- [x] Validate the completed non-sensitive readiness documentation and weekly dependency-monitoring configuration.
+- [x] Synchronize the completed readiness documentation and dependency-monitoring configuration to Ishwarpatra/Cleanvee.
+- [x] Save the readiness milestone while retaining the pending authorized checkpoint and operator-data activation task.
