@@ -128,4 +128,19 @@
 - [x] Verify custom icon rendering, sizing, contrast, and accessible labeling through source, mounted UI, and responsive browser checks.
 - [x] Fix any confirmed custom-icon rendering or accessibility defects and add focused regression coverage.
 - [x] Re-run full icon verification and document the outcome.
-- [ ] Synchronize the verified custom-icon checks and ErrorBoundary icon replacement to Ishwarpatra/Cleanvee in file-focused commits.
+- [x] Synchronize the verified custom-icon checks and ErrorBoundary icon replacement to Ishwarpatra/Cleanvee in file-focused commits.
+- [x] Diagnose why the latest Cleanvee checkpoint is not reflected by the live deployment.
+- [x] Determine and document whether a hosting configuration change is needed for reliable deployment updates.
+- [x] Inspect available publish and deployment state to distinguish no deployment from a stale or failed revision.
+- [x] Document the verified deployment blocker and exact safe remediation path.
+- [x] Verify the supplied Cleanvee production URL and add it to repository documentation.
+- [x] Push the production-link documentation update to Ishwarpatra/Cleanvee in a focused commit.
+- [x] Map the 27 reported Firebase-era issues to the current Cleanvee application and identify any applicable defects.
+- [x] Fix and test each confirmed current-application defect from the issue review (none were present in the current codebase).
+- [x] Document issue-report items that do not apply because the current Cleanvee system uses Manus OAuth, tRPC, Drizzle, and MySQL rather than Firebase.
+- [x] Validate and synchronize any confirmed issue-review fixes to Ishwarpatra/Cleanvee.
+- [x] Establish and record the current Cleanvee audit baseline, including source, test, and deployment state.
+- [x] Audit authentication, authorization, data integrity, and connected workflow behavior for current defects.
+- [x] Audit rendered UI behavior, accessibility, responsiveness, and production health for current defects.
+- [x] Fix and regression-test every confirmed defect found in the independent audit.
+- [ ] Revalidate and synchronize the completed independent audit outcome to Ishwarpatra/Cleanvee.
