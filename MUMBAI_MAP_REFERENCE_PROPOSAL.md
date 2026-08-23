@@ -23,6 +23,24 @@ The building record can be created with the verified address, but no checkpoint 
 
 The approved building was created in Cleanvee as **record ID 1** with the explicit schedule value `Not configured — map reference only`. Verification confirmed that the building is active, its administrator activity entry is present, and **zero checkpoints** were created. The map reference therefore remains non-operational until authorized site details are provided.
 
+## User-authorized draft configuration
+
+The user authorized a **07:00–18:00** schedule and requested an agent-defined setup because the record will not yet be used operationally. The following records are therefore drafts, not claims about the building interior. Each will remain inactive and must be replaced or confirmed during an authorized site walk-through before activation.
+
+| Draft label | Stored location | Floor | Draft NFC identifier | Status |
+|---|---|---|---|---|
+| `DRAFT — Arrival point` | `Unverified — confirm at site walk-through` | `To be confirmed` | `DRAFT-MUM-ONEBKC-001` | Inactive |
+| `DRAFT — Service route point` | `Unverified — confirm at site walk-through` | `To be confirmed` | `DRAFT-MUM-ONEBKC-002` | Inactive |
+| `DRAFT — Completion point` | `Unverified — confirm at site walk-through` | `To be confirmed` | `DRAFT-MUM-ONEBKC-003` | Inactive |
+
+> No operator, team assignment, proof record, or active NFC workflow is created by this draft configuration.
+
+## Verified draft state
+
+The draft configuration is now applied. The building retains an active map-reference record only; its schedule is `07:00–18:00 — map reference draft only`. All three draft checkpoints are inactive, have no asserted physical placement, and have no active team assignment. Administrator activity records capture both the schedule update and the draft-checkpoint creation.
+
+Before any checkpoint is activated, an authorized site contact must confirm its actual label, interior location, floor, NFC tag identifier, and the assigned operator. The corresponding `DRAFT-*` record should then be replaced or explicitly updated; it must not be silently reused as an asserted site fact.
+
 ## References
 
 [1]: https://www.cushmanwakefield.com/en/india/offices/mumbai "Cushman & Wakefield — Mumbai office"
