@@ -149,6 +149,10 @@
 - [x] Review the existing building, checkpoint, operator-invitation, and dependency-monitoring capabilities for operational readiness.
 - [x] Add safe operational-readiness guidance or monitoring support without fabricating real site or user data.
 - [ ] Collect the real building, checkpoint, and operator details required to activate operational workflows.
+- [x] Define an inactive, clearly draft checkpoint set for the approved Mumbai map-reference building.
+- [x] Apply the authorized 07:00–18:00 schedule and inactive draft checkpoint records without creating an operator account.
+- [x] Validate and document the map-reference draft configuration and its required activation safeguards.
+- [x] Synchronize the verified Mumbai draft-configuration documentation to Ishwarpatra/Cleanvee.
 - [x] Validate the operational-readiness improvements and document the remaining activation steps.
 - [x] Confirm the target city or user-designated public location for map-based initial-site setup (Mumbai).
 - [x] Research and propose a public-site checkpoint model without claiming unverified interior or NFC details (approved Mumbai map-reference pilot).
