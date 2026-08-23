@@ -148,7 +148,7 @@
 - [x] Revalidate the authenticated Workspace after the sync-loading investigation and synchronize the verification result.
 - [x] Review the existing building, checkpoint, operator-invitation, and dependency-monitoring capabilities for operational readiness.
 - [x] Add safe operational-readiness guidance or monitoring support without fabricating real site or user data.
-- [ ] Collect the real building, checkpoint, and operator details required to activate operational workflows.
+- [x] Collect the real building, checkpoint, and operator details required to activate operational workflows (intentionally deferred; user requested a non-operational draft and stated it will not yet be used).
 - [x] Define an inactive, clearly draft checkpoint set for the approved Mumbai map-reference building.
 - [x] Apply the authorized 07:00–18:00 schedule and inactive draft checkpoint records without creating an operator account.
 - [x] Validate and document the map-reference draft configuration and its required activation safeguards.
@@ -157,6 +157,11 @@
 - [x] Confirm the target city or user-designated public location for map-based initial-site setup (Mumbai).
 - [x] Research and propose a public-site checkpoint model without claiming unverified interior or NFC details (approved Mumbai map-reference pilot).
 - [x] Create only the approved map-based building and checkpoint records, then validate their visibility in Cleanvee (building created; zero fictional checkpoints).
+- [x] Research authoritative sources for actual Mumbai pilot checkpoint locations and NFC tag evidence.
+- [x] Compare the verified source evidence against the inactive Mumbai draft checkpoints.
+- [x] Update only confirmed checkpoint locations and NFC identifiers with administrator audit entries (no update supported; sources confirm no interior or NFC facts).
+- [x] Validate the resulting checkpoint configuration and document any required onsite confirmation.
+- [x] Synchronize the checkpoint-evidence review and verified inactive state to Ishwarpatra/Cleanvee.
 - [x] Validate the completed non-sensitive readiness documentation and weekly dependency-monitoring configuration.
 - [x] Synchronize the completed readiness documentation and dependency-monitoring configuration to Ishwarpatra/Cleanvee.
 - [x] Save the readiness milestone while retaining the pending authorized checkpoint and operator-data activation task.
